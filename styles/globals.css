@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+
+html {
+  font-family: var(--font-body);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #f8f7ff;
+  color: #1e1f6b;
+  font-family: var(--font-body);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.scroll-touch { -webkit-overflow-scrolling: touch; overflow-y: auto; }
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c7d6fe; border-radius: 99px; }
+
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+.touch-target { min-height: 44px; min-width: 44px; }
+
+/* Priority badges */
+.badge-high { background: #fff1ef; color: #e72a0c; border: 1px solid #ffc4b8; }
+.badge-med  { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.badge-low  { background: #f0f4ff; color: #3c3fce; border: 1px solid #c7d6fe; }
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           bg-gradient-to-r from-navy-700 to-navy-500 text-white font-semibold
+           rounded-2xl shadow-card active:scale-95 transition-all duration-150
+           touch-target font-display;
+  }
+  .btn-coral {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           bg-gradient-to-r from-coral-600 to-coral-400 text-white font-semibold
+           rounded-2xl shadow-card active:scale-95 transition-all duration-150
+           touch-target font-display;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2
+           text-navy-600 font-medium rounded-xl hover:bg-navy-50
+           active:scale-95 transition-all duration-150;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-3
+           bg-white text-navy-800 font-semibold rounded-2xl border-2 border-navy-100
+           hover:border-navy-300 active:scale-95 transition-all duration-150 touch-target;
+  }
+  .card {
+    @apply bg-white rounded-2xl border border-navy-100 shadow-card;
+  }
+  .card-hover {
+    @apply bg-white rounded-2xl border border-navy-100 shadow-card
+           hover:shadow-card-lg hover:border-navy-200 transition-all duration-200;
+  }
+  .input {
+    @apply w-full px-4 py-3 bg-white border-2 border-navy-100 rounded-2xl
+           text-navy-900 placeholder-navy-300 font-body
+           focus:outline-none focus:border-navy-400 transition-all;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .section-title {
+    @apply text-xs font-bold uppercase tracking-widest text-navy-400;
+  }
+}
