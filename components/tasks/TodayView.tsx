@@ -45,4 +45,53 @@ export default function TodayView({ userId }: { userId: string }) {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  const complete = async (id: string) => {
+ const complete = async (id: string) => {
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "completed" })
+    .eq("id", id);
+
+  if (error) {
+    toast.error("Failed to complete task");
+    return;
+  }
+
+  toast.success("Task completed");
+  fetchTasks();
+};
+
+if (loading) {
+  return <div className="p-4">Loading...</div>;
+}
+
+return (
+  <div className="p-4 space-y-6">
+    <div>
+      <h2 className="text-lg font-semibold">Overdue</h2>
+      {overdue.map(task => (
+        <div key={task.id} className="p-2 border rounded mb-2">
+          {task.description}
+        </div>
+      ))}
+    </div>
+
+    <div>
+      <h2 className="text-lg font-semibold">Today</h2>
+      {todayTasks.map(task => (
+        <div key={task.id} className="p-2 border rounded mb-2">
+          {task.description}
+        </div>
+      ))}
+    </div>
+
+    <div>
+      <h2 className="text-lg font-semibold">Upcoming</h2>
+      {upcoming.map(task => (
+        <div key={task.id} className="p-2 border rounded mb-2">
+          {task.description}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+}
