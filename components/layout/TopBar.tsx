@@ -2,6 +2,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useState } from "react";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const PAGE_TITLES: Record<string, { title: string; emoji: string }> = {
   "/dashboard/today": { title: "Today", emoji: "☀️" },
@@ -12,7 +13,7 @@ const PAGE_TITLES: Record<string, { title: string; emoji: string }> = {
   "/dashboard/import": { title: "Import", emoji: "📥" },
 };
 
-export default function TopBar({ userEmail }: { userEmail: string }) {
+export default function TopBar({ userEmail, userId }: { userEmail: string; userId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -27,21 +28,27 @@ export default function TopBar({ userEmail }: { userEmail: string }) {
 
   return (
     <header className="safe-top" style={{ background: "linear-gradient(135deg, #13144a 0%, #1e1f6b 100%)" }}>
-      <div className="flex items-center justify-between px-4 h-14">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">{page.emoji}</span>
-          <h1 className="text-base font-display font-bold text-white">{page.title}</h1>
+      <div className="flex items-center gap-3 px-4 h-14">
+        {/* Title — hide on wider screens to make room for search */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-lg">{page.emoji}</span>
+          <h1 className="text-sm font-display font-bold text-white hidden xs:block">{page.title}</h1>
         </div>
-        <div className="relative">
+
+        {/* Search */}
+        <GlobalSearch userId={userId} />
+
+        {/* Avatar */}
+        <div className="relative flex-shrink-0">
           <button onClick={() => setShowMenu(!showMenu)}
-            className="w-9 h-9 rounded-full border-2 border-white/20 flex items-center justify-center text-white text-sm font-bold font-display"
+            className="w-8 h-8 rounded-full border-2 border-white/20 flex items-center justify-center text-white text-xs font-bold font-display"
             style={{ background: "linear-gradient(135deg, #f94021, #ff6b52)" }}>
             {userEmail.charAt(0).toUpperCase()}
           </button>
           {showMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-11 z-20 bg-white rounded-2xl shadow-card-lg border border-navy-100 py-2 min-w-[180px]">
+              <div className="absolute right-0 top-10 z-20 bg-white rounded-2xl shadow-card-lg border border-navy-100 py-2 min-w-[180px]">
                 <div className="px-4 py-2 border-b border-navy-50">
                   <p className="text-xs text-navy-400 truncate font-medium">{userEmail}</p>
                 </div>

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -102,10 +103,12 @@ function ContactCard({ contact: c, config }: { contact: Contact; config: typeof 
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
   const initials = c.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
   const pDot = PRIORITY_DOT[c.priority_score || ""] || null;
+  const router = useRouter();
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}
-      className="bg-white rounded-xl border border-navy-100 p-3 cursor-grab active:cursor-grabbing select-none shadow-card">
+      className="bg-white rounded-xl border border-navy-100 p-3 cursor-grab active:cursor-grabbing select-none shadow-card"
+      onClick={() => !isDragging && router.push(`/contacts/${c.id}`)}>
       <div className="flex items-start gap-2">
         <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-xs font-display font-bold"
           style={{ background: config.gradient }}>{initials}</div>

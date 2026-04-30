@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex flex-col h-screen" style={{ background: "#f8f7ff" }}>
-      <TopBar userEmail={session.user.email || ""} />
+      <TopBar userEmail={session.user.email || ""} userId={session.user.id} />
       <main className="flex-1 overflow-hidden">{children}</main>
       <BottomNav />
     </div>
