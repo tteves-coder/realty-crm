@@ -210,4 +210,139 @@ export default function ContactsView({ userId }: { userId: string }) {
                 <span className="text-navy-200">·</span>
                 <button onClick={deleteSelected} disabled={deleting}
                   className="text-xs text-coral-600 font-bold hover:text-coral-800">
-                  {deleting ? "Deleting..." : `Delete ${selectedId
+                  {deleting ? "Deleting..." : `Delete ${selectedIds.size}`}
+                </button>
+                <button onClick={() => handleExport(contacts.filter(c => selectedIds.has(c.id)), `selected-${format(new Date(),"yyyy-MM-dd")}.csv`)}
+                  className="text-xs text-jade-700 font-bold hover:text-jade-900">
+                  Export {selectedIds.size}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-navy-400 font-medium">{filtered.length} contacts</p>
+      </div>
+
+      {/* ML Update banner */}
+      {viewMode === "ml_update" && mlUpdateCount > 0 && (
+        <div className="mx-4 mt-3 p-3 bg-gold-50 border border-gold-200 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-gold-800">🔔 {mlUpdateCount} contacts flagged</p>
+            <p className="text-xs text-gold-600 mt-0.5">Need updating in Market Leader</p>
+          </div>
+          <button onClick={() => handleExport(contacts.filter(c => (c as any).ml_update_needed), `ml-update-${format(new Date(),"yyyy-MM-dd")}.csv`)}
+            className="text-xs font-bold text-gold-700 bg-gold-100 border border-gold-300 px-3 py-1.5 rounded-xl">
+            Export CSV
+          </button>
+        </div>
+      )}
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto scroll-touch">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-6 h-6 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin"/>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-navy-400 text-sm">
+              {viewMode === "ml_update" ? "No contacts flagged for ML update" : "No contacts found"}
+            </p>
+          </div>
+        ) : (
+          <>
+            {["HIGH","MED","LOW","None"].map(p => {
+              const group = byPriority[p];
+              if (!group?.length) return null;
+              return (
+                <div key={p}>
+                  <div className="px-4 py-2 bg-navy-50/50 border-b border-navy-100">
+                    <p className="section-title">{p === "None" ? "No Priority" : `${p} Priority`} · {group.length}</p>
+                  </div>
+                  {group.map(c => (
+                    <div key={c.id} className="flex items-center bg-white border-b border-navy-50">
+                      {selectMode && (
+                        <button onClick={() => toggleSelect(c.id)} className="pl-4 pr-2 py-3.5">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedIds.has(c.id) ? "border-navy-600 bg-navy-600" : "border-navy-300"}`}>
+                            {selectedIds.has(c.id) && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      )}
+                      <button className="flex-1 text-left px-4 py-3.5 hover:bg-navy-50/50 active:bg-navy-50 transition-colors"
+                        onClick={() => selectMode ? toggleSelect(c.id) : router.push(`/contacts/${c.id}`)}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-sm font-display font-bold flex-shrink-0 relative"
+                            style={{ background: STAGE_GRAD[c.pipeline_stage] || STAGE_GRAD.Other }}>
+                            {c.name.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase()}
+                            {(c as any).ml_update_needed && (
+                              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-gold-400 rounded-full border-2 border-white"/>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-display font-semibold text-navy-900 text-sm">{c.name}</p>
+                              {c.priority_score && (
+                                <span className={`badge ${PRIORITY_STYLE[c.priority_score]?.bg} ${PRIORITY_STYLE[c.priority_score]?.text}`}>{c.priority_score}</span>
+                              )}
+                              {(c as any).ml_update_needed && (
+                                <span className="badge bg-gold-50 text-gold-700">🔔 ML</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-navy-400 mt-0.5 truncate">
+                              {[c.city, c.credit_score, c.campaign || c.phone].filter(Boolean).join(" · ")}
+                            </p>
+                            {(c as any).next_steps && (
+                              <p className="text-xs text-navy-500 mt-0.5 truncate">→ {(c as any).next_steps}</p>
+                            )}
+                          </div>
+                          {!selectMode && (
+                            <svg className="w-4 h-4 text-navy-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                      {!selectMode && (
+                        <button onClick={() => setDeleteTarget(c)} className="pr-4 pl-2 py-3.5 text-navy-300 hover:text-coral-500 transition-colors">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDeleteTarget(null)}/>
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl p-6 safe-bottom">
+            <h3 className="font-display font-bold text-navy-900 text-lg mb-1">Delete contact?</h3>
+            <p className="text-navy-500 text-sm mb-1">
+              <span className="font-semibold">{deleteTarget.name}</span> will be permanently deleted with all tasks and history.
+            </p>
+            <p className="text-coral-600 text-xs mb-6">This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={() => deleteContact(deleteTarget)} disabled={deleting}
+                className="flex-1 py-3 rounded-2xl font-display font-bold text-white active:scale-95"
+                style={{ background: "linear-gradient(135deg, #dc2626, #f87171)" }}>
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
