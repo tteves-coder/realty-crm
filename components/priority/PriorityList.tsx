@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { Contact, TouchType } from "@/lib/database.types";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO } from "date-fns";
 import toast from "react-hot-toast";
 import {
   DndContext, DragEndEvent, PointerSensor, TouchSensor,
@@ -39,6 +39,7 @@ export default function PriorityList({ userId }: { userId: string }) {
   const [taskMap, setTaskMap] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Contact | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   const sensors = useSensors(
@@ -47,36 +48,51 @@ export default function PriorityList({ userId }: { userId: string }) {
   );
 
   const fetchData = useCallback(async () => {
-    // All contacts sorted by priority
-    const { data: allContacts } = await supabase
-      .from("contacts").select("*").eq("user_id", userId)
-      .order("priority_order", { ascending: true, nullsFirst: false });
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: allContacts, error: contactErr } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("user_id", userId)
+        .order("name", { ascending: true });
 
-    const sorted = (allContacts || []) as Contact[];
-    const priorityOrder = ["HIGH", "MED", "LOW"];
-    const ranked = [...sorted].sort((a, b) =>
-      priorityOrder.indexOf(a.priority_score || "LOW") - priorityOrder.indexOf(b.priority_score || "LOW")
-    );
-    setContacts(ranked);
+      if (contactErr) throw contactErr;
 
-    // Load pending tasks for all contacts
-    if (ranked.length > 0) {
-      const ids = ranked.map(c => c.id);
-      const { data: tasks } = await supabase
-        .from("tasks").select("*")
-        .in("contact_id", ids)
-        .eq("status", "pending")
-        .order("due_date", { ascending: true });
+      const priorityOrder = ["HIGH", "MED", "LOW"];
+      const ranked = ((allContacts || []) as Contact[]).sort((a, b) => {
+        const ai = priorityOrder.indexOf(a.priority_score || "NONE");
+        const bi = priorityOrder.indexOf(b.priority_score || "NONE");
+        const aVal = ai === -1 ? 99 : ai;
+        const bVal = bi === -1 ? 99 : bi;
+        return aVal - bVal;
+      });
+      setContacts(ranked);
 
-      const map: Record<string, Task[]> = {};
-      for (const t of (tasks || []) as Task[]) {
-        const tid = (t as any).contact_id;
-        if (!map[tid]) map[tid] = [];
-        map[tid].push(t);
+      if (ranked.length > 0) {
+        const ids = ranked.map(c => c.id);
+        const { data: tasks, error: taskErr } = await supabase
+          .from("tasks")
+          .select("*")
+          .in("contact_id", ids)
+          .eq("status", "pending")
+          .order("due_date", { ascending: true });
+
+        if (taskErr) throw taskErr;
+
+        const map: Record<string, Task[]> = {};
+        for (const t of (tasks || []) as any[]) {
+          if (!map[t.contact_id]) map[t.contact_id] = [];
+          map[t.contact_id].push(t as Task);
+        }
+        setTaskMap(map);
       }
-      setTaskMap(map);
+    } catch (e: any) {
+      console.error("PriorityList error:", e);
+      setError(e?.message || "Failed to load contacts");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [supabase, userId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -93,16 +109,25 @@ export default function PriorityList({ userId }: { userId: string }) {
     }
   };
 
-  const groupedByPriority = ["HIGH", "MED", "LOW"].reduce((acc, p) => {
-    acc[p] = contacts.filter(c => c.priority_score === p);
-    return acc;
-  }, {} as Record<string, Contact[]>);
-
   if (loading) return (
     <div className="flex items-center justify-center h-full">
       <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
     </div>
   );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center h-full px-4 text-center">
+      <p className="text-coral-600 font-semibold mb-2">Failed to load</p>
+      <p className="text-navy-400 text-sm mb-4">{error}</p>
+      <button onClick={fetchData} className="btn-primary">Try Again</button>
+    </div>
+  );
+
+  const groupedByPriority = ["HIGH", "MED", "LOW"].reduce((acc, p) => {
+    acc[p] = contacts.filter(c => c.priority_score === p);
+    return acc;
+  }, {} as Record<string, Contact[]>);
+  const noPriority = contacts.filter(c => !c.priority_score);
 
   return (
     <div className="h-full flex flex-col">
@@ -112,7 +137,7 @@ export default function PriorityList({ userId }: { userId: string }) {
 
       {contacts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-          <div className="text-5xl mb-4">⭐</div>
+          <div className="text-5xl mb-4">👥</div>
           <h3 className="font-display font-bold text-navy-900">No contacts yet</h3>
           <p className="text-navy-400 text-sm mt-1">Import contacts to see them here.</p>
         </div>
@@ -129,24 +154,18 @@ export default function PriorityList({ userId }: { userId: string }) {
                     <div className={`px-4 py-2 ${ps.bg} border-b ${ps.border}`}>
                       <p className={`section-title ${ps.text}`}>{priority} Priority · {group.length}</p>
                     </div>
-                    {group.map((c, i) => (
-                      <SortableRow
-                        key={c.id}
-                        contact={c}
-                        tasks={taskMap[c.id] || []}
-                        onTap={() => setSelected(c)}
-                      />
+                    {group.map(c => (
+                      <SortableRow key={c.id} contact={c} tasks={taskMap[c.id] || []} onTap={() => setSelected(c)} />
                     ))}
                   </div>
                 );
               })}
-              {/* Contacts with no priority */}
-              {contacts.filter(c => !c.priority_score).length > 0 && (
+              {noPriority.length > 0 && (
                 <div>
                   <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
-                    <p className="section-title text-slate-500">No Priority · {contacts.filter(c => !c.priority_score).length}</p>
+                    <p className="section-title text-slate-500">No Priority · {noPriority.length}</p>
                   </div>
-                  {contacts.filter(c => !c.priority_score).map(c => (
+                  {noPriority.map(c => (
                     <SortableRow key={c.id} contact={c} tasks={taskMap[c.id] || []} onTap={() => setSelected(c)} />
                   ))}
                 </div>
@@ -158,7 +177,8 @@ export default function PriorityList({ userId }: { userId: string }) {
 
       {selected && (
         <ContactSheet
-          contact={selected} userId={userId}
+          contact={selected}
+          userId={userId}
           onClose={() => setSelected(null)}
           onUpdate={updated => {
             setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
@@ -175,7 +195,7 @@ function SortableRow({ contact: c, tasks, onTap }: { contact: Contact; tasks: Ta
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
   const initials = c.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
-  const ps = PRIORITY_STYLE[c.priority_score || ""] || null;
+  const ps = PRIORITY_STYLE[c.priority_score || ""];
   const nextTask = tasks[0];
 
   return (
@@ -260,27 +280,25 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
   }, [contact.id]);
 
   const logTouch = async (type: TouchType) => {
-    const supabase2 = createClient();
     const now = new Date().toISOString();
     const today = now.split("T")[0];
-    // Log touch
-    await supabase2.from("touch_logs").insert({
-      contact_id: contact.id, user_id: userId,
-      touch_type: type, touched_at: now,
+    await supabase.from("touch_logs").insert({
+      contact_id: contact.id, user_id: userId, touch_type: type, touched_at: now,
     } as any);
-    // Update last contacted
-    await supabase2.from("contacts").update({ last_contacted: today } as any).eq("id", contact.id);
-    // Sync to daily_activities
-    const actMap: Record<TouchType, string> = {
+    await supabase.from("contacts").update({ last_contacted: today } as any).eq("id", contact.id);
+    const actMap: Record<string, string> = {
       call: "calls", text: "texts", email: "texts",
       door: "door_knocking", postcard: "networking", bombbomb: "conversations", other: "conversations",
     };
-    const col = actMap[type];
-    const { data: existing } = await supabase2.from("daily_activities").select("*").eq("user_id", userId).eq("date", today).single().catch(() => ({ data: null }));
+    const col = actMap[type] || "conversations";
+    const { data: existing } = await supabase.from("daily_activities")
+      .select("*").eq("user_id", userId).eq("date", today).maybeSingle();
     if (existing) {
-      await supabase2.from("daily_activities").update({ [col]: ((existing as any)[col] || 0) + 1, updated_at: now } as any).eq("id", (existing as any).id);
+      await supabase.from("daily_activities")
+        .update({ [col]: ((existing as any)[col] || 0) + 1, updated_at: now } as any)
+        .eq("id", (existing as any).id);
     } else {
-      await supabase2.from("daily_activities").insert({ user_id: userId, date: today, [col]: 1 } as any);
+      await supabase.from("daily_activities").insert({ user_id: userId, date: today, [col]: 1 } as any);
     }
     const tt = TOUCH_TYPES.find(t2 => t2.type === type);
     toast.success(`${tt?.label} logged & tracked!`);
@@ -292,14 +310,12 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDays);
     const dueDateStr = dueDate.toISOString().split("T")[0];
-    // Update contact
     const { data } = await supabase.from("contacts")
       .update({ next_steps: nextSteps, campaign, pipeline_stage: stage as any,
         priority_score: priority || null, ml_update_needed: mlUpdate,
         updated_at: new Date().toISOString() } as any)
       .eq("id", contact.id).select().single();
     if (data) onUpdate(data as Contact);
-    // Auto-create task from next steps
     if (nextSteps?.trim()) {
       const { data: existing } = await supabase.from("tasks").select("id")
         .eq("contact_id", contact.id).eq("status", "pending").limit(1);
@@ -347,8 +363,6 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl safe-bottom max-h-[92vh] overflow-y-auto">
         <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-navy-200" /></div>
-
-        {/* Header */}
         <div className="px-4 pb-3 border-b border-navy-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -365,8 +379,6 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
               </svg>
             </button>
           </div>
-
-          {/* Property data chips */}
           {(contact.credit_score || contact.equity_flag !== null || contact.mortgage_amount) && (
             <div className="flex gap-2 mt-3 flex-wrap">
               {contact.credit_score && <span className="badge bg-navy-50 text-navy-700">Credit: {contact.credit_score}</span>}
@@ -376,7 +388,6 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
           )}
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-navy-100">
           {(["actions", "tasks"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
@@ -389,14 +400,12 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
         <div className="px-4 py-4 space-y-4">
           {activeTab === "actions" && (
             <>
-              {/* Quick contact */}
               <div className="grid grid-cols-3 gap-2">
                 {contact.phone && <a href={`tel:${contact.phone}`} className="flex flex-col items-center gap-1 p-3 rounded-2xl text-white text-xs font-semibold" style={{ background: "linear-gradient(135deg, #6171f5, #8196fa)" }}><span className="text-xl">📞</span>Call</a>}
                 {contact.phone && <a href={`sms:${contact.phone}`} className="flex flex-col items-center gap-1 p-3 rounded-2xl text-white text-xs font-semibold" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}><span className="text-xl">💬</span>Text</a>}
                 {contact.email && <a href={`mailto:${contact.email}`} className="flex flex-col items-center gap-1 p-3 rounded-2xl text-white text-xs font-semibold" style={{ background: "linear-gradient(135deg, #8b5cf6, #a78bfa)" }}><span className="text-xl">📧</span>Email</a>}
               </div>
 
-              {/* Log touch — syncs to tracker */}
               <div>
                 <p className="section-title mb-2">Log Touch → Syncs to Tracker</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -424,7 +433,6 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
                 )}
               </div>
 
-              {/* Next Steps with due date */}
               <div>
                 <p className="section-title mb-2">Next Steps</p>
                 <textarea value={nextSteps} onChange={e => setNextSteps(e.target.value)}
@@ -436,14 +444,13 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
                       <button key={days} onClick={() => setDueDays(days)}
                         className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${dueDays === days ? "text-white" : "bg-navy-50 text-navy-500"}`}
                         style={dueDays === days ? { background: "linear-gradient(135deg, #1e1f6b, #6171f5)" } : {}}>
-                        {days === 1 ? "1 day" : `${days} days`}
+                        {days === 1 ? "1 day" : `${days}d`}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Settings */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-navy-500 mb-1">Priority</label>
