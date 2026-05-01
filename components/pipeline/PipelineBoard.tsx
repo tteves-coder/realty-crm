@@ -31,6 +31,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [taskMap, setTaskMap] = useState<Record<string, Task | null>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<Contact | null>(null);
   const supabase = createClient();
 
@@ -40,28 +41,42 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   );
 
   const fetchData = useCallback(async () => {
-    const { data: contactData } = await supabase
-      .from("contacts").select("*").eq("user_id", userId).order("name");
-    const allContacts = (contactData as Contact[]) || [];
-    setContacts(allContacts);
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: contactData, error: contactErr } = await supabase
+        .from("contacts").select("*").eq("user_id", userId).order("name", { ascending: true });
 
-    // Fetch next pending task per contact
-    if (allContacts.length > 0) {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const { data: tasks } = await supabase
-        .from("tasks").select("*")
-        .in("contact_id", allContacts.map(c => c.id))
-        .eq("status", "pending")
-        .lte("due_date", today)
-        .order("due_date", { ascending: true });
+      if (contactErr) throw contactErr;
 
-      const map: Record<string, Task | null> = {};
-      for (const t of (tasks || []) as any[]) {
-        if (!map[t.contact_id]) map[t.contact_id] = { id: t.id, description: t.description, due_date: t.due_date };
+      const allContacts = (contactData as Contact[]) || [];
+      setContacts(allContacts);
+
+      if (allContacts.length > 0) {
+        const today = format(new Date(), "yyyy-MM-dd");
+        const { data: tasks, error: taskErr } = await supabase
+          .from("tasks").select("*")
+          .in("contact_id", allContacts.map(c => c.id))
+          .eq("status", "pending")
+          .lte("due_date", today)
+          .order("due_date", { ascending: true });
+
+        if (taskErr) throw taskErr;
+
+        const map: Record<string, Task | null> = {};
+        for (const t of (tasks || []) as any[]) {
+          if (!map[t.contact_id]) {
+            map[t.contact_id] = { id: t.id, description: t.description, due_date: t.due_date };
+          }
+        }
+        setTaskMap(map);
       }
-      setTaskMap(map);
+    } catch (e: any) {
+      console.error("PipelineBoard error:", e);
+      setError(e?.message || "Failed to load pipeline");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [supabase, userId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -98,6 +113,14 @@ export default function PipelineBoard({ userId }: { userId: string }) {
     </div>
   );
 
+  if (error) return (
+    <div className="flex flex-col items-center justify-center h-full px-4 text-center">
+      <p className="text-coral-600 font-semibold mb-2">Failed to load pipeline</p>
+      <p className="text-navy-400 text-sm mb-4">{error}</p>
+      <button onClick={fetchData} className="btn-primary">Try Again</button>
+    </div>
+  );
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="h-full overflow-x-auto scroll-touch">
@@ -108,7 +131,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
         </div>
       </div>
       <DragOverlay>
-        {active && <ContactCard contact={active} task={taskMap[active.id] || null} config={STAGE_CONFIG[active.pipeline_stage as Stage] || STAGE_CONFIG.Other} />}
+        {active && <ContactCard contact={active} task={taskMap[active.id] || null} config={STAGE_CONFIG[active.pipeline_stage as Stage] || STAGE_CONFIG.Other} isDragging />}
       </DragOverlay>
     </DndContext>
   );
@@ -137,11 +160,11 @@ function KanbanCol({ stage, contacts, taskMap, config }: {
   );
 }
 
-function ContactCard({ contact: c, task, config }: {
-  contact: Contact; task: Task | null; config: typeof STAGE_CONFIG[Stage];
+function ContactCard({ contact: c, task, config, isDragging: forceDrag }: {
+  contact: Contact; task: Task | null; config: typeof STAGE_CONFIG[Stage]; isDragging?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: (isDragging || forceDrag) ? 0.4 : 1 };
   const initials = c.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
   const pDot = PRIORITY_DOT[c.priority_score || ""] || null;
   const router = useRouter();
@@ -159,17 +182,13 @@ function ContactCard({ contact: c, task, config }: {
             <p className="text-sm font-display font-semibold text-navy-900 truncate">{c.name}</p>
           </div>
           {task ? (
-            <p className="text-xs text-navy-500 mt-0.5 truncate">
-              → {task.description}
-            </p>
+            <>
+              <p className="text-xs text-navy-600 mt-0.5 truncate">→ {task.description}</p>
+              <p className="text-xs text-coral-500 font-medium mt-0.5">Due {format(parseISO(task.due_date), "MMM d")}</p>
+            </>
           ) : c.campaign ? (
             <p className="text-xs text-navy-400 truncate mt-0.5">{c.campaign}</p>
           ) : null}
-          {task && (
-            <p className="text-xs text-coral-500 font-medium mt-0.5">
-              Due {format(parseISO(task.due_date), "MMM d")}
-            </p>
-          )}
         </div>
       </div>
     </div>
