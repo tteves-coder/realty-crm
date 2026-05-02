@@ -41,46 +41,58 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   );
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: contactData, error: contactErr } = await supabase
-        .from("contacts").select("*").eq("user_id", userId).order("name", { ascending: true });
+  setLoading(true);
+  setError(null);
 
-      if (contactErr) throw contactErr;
+  try {
+    const { data: contactData, error: contactErr } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("user_id", userId)
+      .order("name", { ascending: true });
 
-const contactIds = allContacts.map((c) => c.id);
+    if (contactErr) throw contactErr;
 
-let tasks: any[] = [];
+    const allContacts: Contact[] = contactData || [];
+    setContacts(allContacts);
 
-if (contactIds.length > 0) {
-  const { data, error: taskErr } = await supabase
-    .from("tasks")
-    .select("*")
-    .in("contact_id", contactIds)
-    .eq("status", "pending")
-    .limit(20);
+    const contactIds = allContacts.map((c) => c.id);
 
-  if (taskErr) throw taskErr;
-  tasks = data || [];
-}
+    let tasks: any[] = [];
 
-        const map: Record<string, Task | null> = {};
-        for (const t of (tasks || []) as any[]) {
-          if (!map[t.contact_id]) {
-            map[t.contact_id] = { id: t.id, description: t.description, due_date: t.due_date };
-          }
-        }
-        setTaskMap(map);
-      }
-    } catch (e: any) {
-      console.error("PipelineBoard error:", e);
-      setError(e?.message || "Failed to load pipeline");
-    } finally {
-      setLoading(false);
+    if (contactIds.length > 0) {
+      const { data, error: taskErr } = await supabase
+        .from("tasks")
+        .select("*")
+        .in("contact_id", contactIds)
+        .eq("status", "pending")
+        .limit(20);
+
+      if (taskErr) throw taskErr;
+
+      tasks = data || [];
     }
-  }, [supabase, userId]);
 
+    const map: Record<string, Task | null> = {};
+
+    for (const t of tasks) {
+      if (!map[t.contact_id]) {
+        map[t.contact_id] = {
+          id: t.id,
+          description: t.description,
+          due_date: t.due_date,
+        };
+      }
+    }
+
+    setTaskMap(map);
+  } catch (e: any) {
+    console.error("PipelineBoard error:", e);
+    setError(e?.message || "Failed to load pipeline");
+  } finally {
+    setLoading(false);
+  }
+}, [supabase, userId]);
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleDragStart = (e: DragStartEvent) => setActive(contacts.find(c => c.id === e.active.id) || null);
