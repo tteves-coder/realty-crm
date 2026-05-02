@@ -249,7 +249,9 @@ function KanbanCol({ stage, contacts, config, taskMap }: any) {
 
   return (
     <div className="w-64 flex-shrink-0">
-      <div className="font-bold mb-2">{stage}</div>
+      <div className={`mb-2 px-2 py-1 rounded-full border text-xs w-fit ${getStageStyle(stage)}`}>
+  {stage}
+</div>
 
       <div
         ref={setNodeRef}
