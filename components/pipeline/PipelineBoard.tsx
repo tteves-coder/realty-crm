@@ -243,7 +243,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   );
 }
 
-function KanbanCol({ stage, contacts, config, taskMap }: any) {
+function KanbanCol({ stage, contacts, taskMap }: any) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
 
   return (
