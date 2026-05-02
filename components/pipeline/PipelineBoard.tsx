@@ -226,8 +226,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
           <KanbanCol
             key={stage}
             stage={stage}
-            contacts={grouped[stage]}
-            config={STAGE_CONFIG[stage]}
+            contacts={grouped[stage]
             taskMap={taskMap}
           />
         ))}
