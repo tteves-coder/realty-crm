@@ -1,5 +1,5 @@
 import React from "react";
-import { ui } from "@/components/ui/uiStyles";
+import { ui } from "@/components/uiStyles";
 
 export default function TodayView({ userId }: { userId: string }) {
   // NOTE: Replace these with your real Supabase/fetched data hooks if needed
