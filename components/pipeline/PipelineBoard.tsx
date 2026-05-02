@@ -221,8 +221,8 @@ export default function PipelineBoard({ userId }: { userId: string }) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 p-4 overflow-x-auto">
-        {STAGES.map((stage) => (
+<div className="flex gap-6 p-6 overflow-x-auto bg-[#0f172a] min-h-screen">
+  {STAGES.map((stage) => (
           <KanbanCol
             key={stage}
             stage={stage}
@@ -247,10 +247,8 @@ function KanbanCol({ stage, contacts, taskMap }: any) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
 
   return (
-   <div className="w-64 flex-shrink-0">
-  <div
-    className={`mb-2 px-2 py-1 rounded-full border text-xs w-fit ${getStageStyle(stage)}`}
-  >
+   <div className="w-72 flex-shrink-0">
+  <div className={`mb-3 px-3 py-1 rounded-full text-xs font-medium w-fit border ${getStageStyle(stage)} backdrop-blur`}>
     {stage}
   </div>
 
@@ -286,7 +284,7 @@ function ContactCard({ contact, task }: any) {
       {...attributes}
       {...listeners}
       onClick={() => router.push(`/contacts/${contact.id}`)}
-      className="p-2 bg-white mb-2 rounded shadow cursor-pointer"
+      className="p-3 mb-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur transition cursor-pointer"
     >
       <div className="font-medium">{contact.name}</div>
 
