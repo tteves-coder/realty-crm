@@ -58,9 +58,8 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   .from("tasks")
   .select("*")
   .in("contact_id", allContacts.map(c => c.id))
-  .eq("status", "pending");
-.eq("status", "pending")
-.limit(20)
+  .eq("status", "pending")
+  .limit(20);
 
         if (taskErr) throw taskErr;
 
