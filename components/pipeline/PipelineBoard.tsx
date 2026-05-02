@@ -59,7 +59,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   .select("*")
   .in("contact_id", allContacts.map(c => c.id))
   .eq("status", "pending")
-  .limit(20);
+  .limit(20);}
 
         if (taskErr) throw taskErr;
 
