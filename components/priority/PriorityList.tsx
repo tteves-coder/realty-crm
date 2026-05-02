@@ -291,8 +291,9 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
       door: "door_knocking", postcard: "networking", bombbomb: "conversations", other: "conversations",
     };
     const col = actMap[type] || "conversations";
-    const { data: existing } = await supabase.from("daily_activities")
-      .select("*").eq("user_id", userId).eq("date", today).maybeSingle();
+    const { data: existingArr } = await supabase.from("daily_activities")
+  .select("*").eq("user_id", userId).eq("date", today).limit(1);
+const existing = existingArr?.[0] || null;
     if (existing) {
       await supabase.from("daily_activities")
         .update({ [col]: ((existing as any)[col] || 0) + 1, updated_at: now } as any)
