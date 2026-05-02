@@ -215,7 +215,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   }
 
   return (
-    <DndContext
+    <DndContext></DndContext>
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
