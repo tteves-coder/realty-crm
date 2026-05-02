@@ -31,30 +31,22 @@ import toast from "react-hot-toast";
 const STAGES = ["Marketing", "Processing", "In Contract", "Other"] as const;
 type Stage = (typeof STAGES)[number];
 
-const STAGE_CONFIG: Record<
-  Stage,
-  { gradient: string; light: string; ring: string }
-> = {
-  Marketing: {
-    gradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-    light: "#dbeafe",
-    ring: "#3b82f6",
-  },
-  Processing: {
-    gradient: "linear-gradient(135deg, #f97316, #c2410c)",
-    light: "#ffedd5",
-    ring: "#f97316",
-  },
-  "In Contract": {
-    gradient: "linear-gradient(135deg, #10b981, #047857)",
-    light: "#d1fae5",
-    ring: "#10b981",
-  },
-  Other: {
-    gradient: "linear-gradient(135deg, #64748b, #0f172a)",
-    light: "#e2e8f0",
-    ring: "#334155",
-  },
+const getStageStyle = (stage: string) => {
+  const s = stage.toLowerCase();
+
+  if (s.includes("marketing")) {
+    return "bg-blue-500/10 text-blue-300 border-blue-500/30";
+  }
+
+  if (s.includes("processing")) {
+    return "bg-orange-500/10 text-orange-300 border-orange-500/30";
+  }
+
+  if (s.includes("contract")) {
+    return "bg-green-500/10 text-green-300 border-green-500/30";
+  }
+
+  return "bg-white/5 text-white/60 border-white/10";
 };
 const PRIORITY_DOT: Record<string, string> = {
   HIGH: "#f94021",
