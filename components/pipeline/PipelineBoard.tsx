@@ -49,7 +49,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
 
       if (contactErr) throw contactErr;
 
-const contactIds = allContacts.map(c => c.id);
+const contactIds = allContacts.map((c) => c.id);
 
 let tasks: any[] = [];
 
