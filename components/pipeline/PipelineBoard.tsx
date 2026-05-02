@@ -221,7 +221,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-<div className="flex gap-6 p-6 overflow-x-auto bg-[#0f172a] min-h-screen">
+<div className="flex gap-6 p-6 overflow-x-auto bg-[#f1f5f9] min-h-screen"> 
   {STAGES.map((stage) => (
           <KanbanCol
             key={stage}
@@ -254,9 +254,9 @@ function KanbanCol({ stage, contacts, taskMap }: any) {
 
   <div
     ref={setNodeRef}
-    className={`p-2 rounded min-h-[200px] border ${
-      isOver ? "border-white/30 bg-white/5" : "border-white/10 bg-white/5"
-    }`}
+    className={`p-3 rounded-xl min-h-[250px] border ${
+  isOver ? "border-gray-300 bg-white" : "border-gray-200"
+}`}
   >
       >
         {contacts.map((c: Contact) => (
