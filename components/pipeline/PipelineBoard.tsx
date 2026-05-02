@@ -215,7 +215,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
   }
 
   return (
-    <DndContext></DndContext>
+    <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
@@ -226,7 +226,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
           <KanbanCol
             key={stage}
             stage={stage}
-            contacts={grouped[stage]
+            contacts={grouped[stage]}
             taskMap={taskMap}
           />
         ))}
@@ -254,8 +254,12 @@ function KanbanCol({ stage, contacts, taskMap }: any) {
 
       <div
         ref={setNodeRef}
-        className="p-2 rounded min-h-[200px]"
-        className={`p-2 rounded min-h-[200px] border ${isOver ? "border-white/30 bg-white/5" : "border-white/10 bg-white/5"}`}
+       <div
+  ref={setNodeRef}
+  className={`p-2 rounded min-h-[200px] border ${
+    isOver ? "border-white/30 bg-white/5" : "border-white/10 bg-white/5"
+  }`}
+>
       >
         {contacts.map((c: Contact) => (
           <ContactCard key={c.id} contact={c} task={taskMap[c.id]} />
