@@ -40,38 +40,30 @@ export default function PipelineBoard({ userId }: { userId: string }) {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
 
-  const fetchData = useCallback(async () => {
+const fetchData = useCallback(async () => {
   setLoading(true);
   setError(null);
 
   try {
-    const { data: contactData, error: contactErr } = await supabase
+    console.log("Loading pipeline for user:", userId);
+
+    const { data: contacts, error } = await supabase
       .from("contacts")
-      .select("*")
-      .eq("user_id", userId)
-      .order("name", { ascending: true });
+      .select("*");
 
-    if (contactErr) throw contactErr;
+    if (error) throw error;
 
-    const allContacts: Contact[] = contactData || [];
-    setContacts(allContacts);
+    console.log("Contacts loaded:", contacts?.length);
 
-    const contactIds = allContacts.map((c) => c.id);
-
-    let tasks: any[] = [];
-
-    if (contactIds.length > 0) {
-      const { data, error: taskErr } = await supabase
-        .from("tasks")
-        .select("*")
-        .in("contact_id", contactIds)
-        .eq("status", "pending")
-        .limit(20);
-
-      if (taskErr) throw taskErr;
-
-      tasks = data || [];
-    }
+    setContacts(contacts || []);
+    setTaskMap({});
+  } catch (e: any) {
+    console.error("Pipeline load error:", e);
+    setError(e?.message || "Failed to load pipeline");
+  } finally {
+    setLoading(false);
+  }
+}, [supabase, userId]);
 
     const map: Record<string, Task | null> = {};
 
