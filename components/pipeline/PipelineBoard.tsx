@@ -45,25 +45,36 @@ const fetchData = useCallback(async () => {
   setError(null);
 
   try {
-    console.log("Loading pipeline for user:", userId);
+    console.log("TEST 1: contacts call starting");
 
-    const { data: contacts, error } = await supabase
+    const { data: contactData, error: contactErr } = await supabase
       .from("contacts")
       .select("*");
 
-    if (error) throw error;
+    console.log("CONTACT RESULT:", contactData);
+    console.log("CONTACT ERROR:", contactErr);
 
-    console.log("Contacts loaded:", contacts?.length);
+    if (contactErr) throw contactErr;
 
-    setContacts(contacts || []);
+    setContacts(contactData ?? []);
+
+    console.log("TEST 2: tasks call starting");
+
+    const { data: taskData, error: taskErr } = await supabase
+      .from("tasks")
+      .select("*");
+
+    console.log("TASK RESULT:", taskData);
+    console.log("TASK ERROR:", taskErr);
+
     setTaskMap({});
   } catch (e: any) {
-    console.error("Pipeline load error:", e);
+    console.error("PIPELINE CRASH:", e);
     setError(e?.message || "Failed to load pipeline");
   } finally {
     setLoading(false);
   }
-}, [supabase, userId]);
+}, [supabase]);
 
     const map: Record<string, Task | null> = {};
 
