@@ -36,27 +36,26 @@ const STAGE_CONFIG: Record<
   { gradient: string; light: string; ring: string }
 > = {
   Marketing: {
-    gradient: "linear-gradient(135deg, #6171f5, #8196fa)",
-    light: "#f0f4ff",
-    ring: "#c7d6fe",
+    gradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+    light: "#dbeafe",
+    ring: "#3b82f6",
   },
   Processing: {
-    gradient: "linear-gradient(135deg, #f59e0b, #fcd34d)",
-    light: "#fffbeb",
-    ring: "#fde68a",
+    gradient: "linear-gradient(135deg, #f97316, #c2410c)",
+    light: "#ffedd5",
+    ring: "#f97316",
   },
   "In Contract": {
-    gradient: "linear-gradient(135deg, #10b981, #34d399)",
-    light: "#ecfdf5",
-    ring: "#a7f3d0",
+    gradient: "linear-gradient(135deg, #10b981, #047857)",
+    light: "#d1fae5",
+    ring: "#10b981",
   },
   Other: {
-    gradient: "linear-gradient(135deg, #64748b, #94a3b8)",
-    light: "#f8fafc",
-    ring: "#e2e8f0",
+    gradient: "linear-gradient(135deg, #64748b, #0f172a)",
+    light: "#e2e8f0",
+    ring: "#334155",
   },
 };
-
 const PRIORITY_DOT: Record<string, string> = {
   HIGH: "#f94021",
   MED: "#f59e0b",
