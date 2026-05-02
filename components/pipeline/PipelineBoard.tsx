@@ -247,19 +247,19 @@ function KanbanCol({ stage, contacts, taskMap }: any) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
 
   return (
-    <div className="w-64 flex-shrink-0">
-      <div className={`mb-2 px-2 py-1 rounded-full border text-xs w-fit ${getStageStyle(stage)}`}>
-  {stage}
-</div>
+   <div className="w-64 flex-shrink-0">
+  <div
+    className={`mb-2 px-2 py-1 rounded-full border text-xs w-fit ${getStageStyle(stage)}`}
+  >
+    {stage}
+  </div>
 
-      <div
-        ref={setNodeRef}
-       <div
-  ref={setNodeRef}
-  className={`p-2 rounded min-h-[200px] border ${
-    isOver ? "border-white/30 bg-white/5" : "border-white/10 bg-white/5"
-  }`}
->
+  <div
+    ref={setNodeRef}
+    className={`p-2 rounded min-h-[200px] border ${
+      isOver ? "border-white/30 bg-white/5" : "border-white/10 bg-white/5"
+    }`}
+  >
       >
         {contacts.map((c: Contact) => (
           <ContactCard key={c.id} contact={c} task={taskMap[c.id]} />
