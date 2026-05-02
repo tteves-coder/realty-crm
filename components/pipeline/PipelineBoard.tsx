@@ -51,16 +51,19 @@ export default function PipelineBoard({ userId }: { userId: string }) {
 
 const contactIds = allContacts.map(c => c.id);
 
+let tasks: any[] = [];
+
 if (contactIds.length > 0) {
-  const { data: tasks, error: taskErr } = await supabase
+  const { data, error: taskErr } = await supabase
     .from("tasks")
     .select("*")
     .in("contact_id", contactIds)
     .eq("status", "pending")
     .limit(20);
-}
 
-        if (taskErr) throw taskErr;
+  if (taskErr) throw taskErr;
+  tasks = data || [];
+}
 
         const map: Record<string, Task | null> = {};
         for (const t of (tasks || []) as any[]) {
