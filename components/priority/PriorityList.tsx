@@ -76,7 +76,7 @@ export default function PriorityList({ userId }: { userId: string }) {
           .select("*")
           .in("contact_id", ids)
           .eq("status", "pending")
-          .order("due_date", { ascending: true });
+          .order("due_date");
 
         if (taskErr) throw taskErr;
 
