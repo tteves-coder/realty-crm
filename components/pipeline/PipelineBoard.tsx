@@ -49,17 +49,16 @@ export default function PipelineBoard({ userId }: { userId: string }) {
 
       if (contactErr) throw contactErr;
 
-      const allContacts = (contactData as Contact[]) || [];
-      setContacts(allContacts);
+const contactIds = allContacts.map(c => c.id);
 
-      if (allContacts.length > 0) {
-        const today = format(new Date(), "yyyy-MM-dd");
-        const { data: tasks, error: taskErr } = await supabase
-  .from("tasks")
-  .select("*")
-  .in("contact_id", allContacts.map(c => c.id))
-  .eq("status", "pending")
-  .limit(20);}
+if (contactIds.length > 0) {
+  const { data: tasks, error: taskErr } = await supabase
+    .from("tasks")
+    .select("*")
+    .in("contact_id", contactIds)
+    .eq("status", "pending")
+    .limit(20);
+}
 
         if (taskErr) throw taskErr;
 
