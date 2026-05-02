@@ -256,7 +256,7 @@ function KanbanCol({ stage, contacts, config, taskMap }: any) {
       <div
         ref={setNodeRef}
         className="p-2 rounded min-h-[200px]"
-        style={{ background: isOver ? config.light : "#f3f4f6" }}
+        className={`p-2 rounded min-h-[200px] border ${isOver ? "border-white/30 bg-white/5" : "border-white/10 bg-white/5"}`}
       >
         {contacts.map((c: Contact) => (
           <ContactCard key={c.id} contact={c} task={taskMap[c.id]} />
