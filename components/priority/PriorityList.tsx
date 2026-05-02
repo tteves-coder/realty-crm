@@ -74,9 +74,8 @@ export default function PriorityList({ userId }: { userId: string }) {
         const { data: tasks, error: taskErr } = await supabase
           .from("tasks")
           .select("*")
-          .in("contact_id", ids)
-          .eq("status", "pending")
-          .order("due_date");
+.eq("status", "pending")
+.limit(20)
 
         if (taskErr) throw taskErr;
 
