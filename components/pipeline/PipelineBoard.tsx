@@ -55,7 +55,10 @@ export default function PipelineBoard({ userId }: { userId: string }) {
       if (allContacts.length > 0) {
         const today = format(new Date(), "yyyy-MM-dd");
         const { data: tasks, error: taskErr } = await supabase
-          .from("tasks")..select("*")
+  .from("tasks")
+  .select("*")
+  .in("contact_id", allContacts.map(c => c.id))
+  .eq("status", "pending");
 .eq("status", "pending")
 .limit(20)
 
