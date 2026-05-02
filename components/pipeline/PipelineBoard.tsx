@@ -59,7 +59,7 @@ export default function PipelineBoard({ userId }: { userId: string }) {
           .in("contact_id", allContacts.map(c => c.id))
           .eq("status", "pending")
           .lte("due_date", today)
-          .order("due_date", { ascending: true });
+          .order("due_date");
 
         if (taskErr) throw taskErr;
 
