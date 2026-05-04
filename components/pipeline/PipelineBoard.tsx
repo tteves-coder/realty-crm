@@ -84,55 +84,66 @@ export default function PipelineBoard({ userId }: { userId: string }) {
     })
   );
 
-  const fetchData = useCallback(async () => {
+ const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      // Only select columns we actually use — much faster on mobile
       const { data: contactData, error: contactErr } = await supabase
         .from("contacts")
-        .select("*")
+        .select("id, name, pipeline_stage, campaign, priority_score, user_id")
         .eq("user_id", userId);
 
       if (contactErr) throw contactErr;
 
-      const allContacts = contactData ?? [];
+      const allContacts = (contactData ?? []) as Contact[];
       setContacts(allContacts);
+      setLoading(false); // show board immediately, even before tasks load
 
-      const contactIds = allContacts.map((c) => c.id);
-      if (contactIds.length === 0) {
+      // Tasks load in background — don't block the UI
+      if (allContacts.length === 0) {
         setTaskMap({});
         return;
       }
 
-      const { data: taskData, error: taskErr } = await supabase
-        .from("tasks")
-        .select("id, contact_id, description, due_date")
-        .in("contact_id", contactIds)
-        .eq("status", "pending");
+      const contactIds = allContacts.map((c) => c.id);
 
-      if (taskErr) console.warn("Task load issue:", taskErr.message);
-
-      const tasks = taskData ?? [];
+      // Chunk the IDs to avoid URL-too-long on mobile
+      const CHUNK = 200;
       const map: Record<string, Task | null> = {};
-      for (const t of tasks) {
-        if (!map[t.contact_id]) {
-          map[t.contact_id] = {
-            id: t.id,
-            description: t.description,
-            due_date: t.due_date,
-          };
+
+      for (let i = 0; i < contactIds.length; i += CHUNK) {
+        const chunk = contactIds.slice(i, i + CHUNK);
+        const { data: taskData, error: taskErr } = await supabase
+          .from("tasks")
+          .select("id, contact_id, description, due_date")
+          .in("contact_id", chunk)
+          .eq("status", "pending");
+
+        if (taskErr) {
+          console.warn("Task chunk failed:", taskErr.message);
+          continue;
+        }
+
+        for (const t of (taskData ?? [])) {
+          if (!map[t.contact_id]) {
+            map[t.contact_id] = {
+              id: t.id,
+              description: t.description,
+              due_date: t.due_date,
+            };
+          }
         }
       }
+
       setTaskMap(map);
     } catch (e: any) {
       console.error("Pipeline error:", e);
       setError(e?.message || "Failed to load pipeline");
-    } finally {
       setLoading(false);
     }
   }, [supabase, userId]);
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
