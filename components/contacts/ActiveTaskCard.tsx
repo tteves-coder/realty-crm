@@ -101,7 +101,6 @@ export default function ActiveTaskCard({
       .from("tasks")
       .update({
         status: "completed",
-        completed_at: new Date().toISOString(),
       })
       .eq("id", task.id);
     setCompleting(false);
