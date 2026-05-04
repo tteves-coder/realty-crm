@@ -70,12 +70,13 @@ export default function PriorityList({ userId }: { userId: string }) {
       setContacts(ranked);
 
       if (ranked.length > 0) {
-        const ids = ranked.map(c => c.id);
-        const { data: tasks, error: taskErr } = await supabase
-          .from("tasks")
-          .select("*")
-.eq("status", "pending")
-.limit(20)
+  const ids = ranked.map(c => c.id);
+  const { data: tasks, error: taskErr } = await supabase
+    .from("tasks")
+    .select("*")
+    .in("contact_id", ids)
+    .eq("status", "pending")
+    .order("due_date", { ascending: true });
 
         if (taskErr) throw taskErr;
 
