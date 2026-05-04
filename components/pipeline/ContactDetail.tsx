@@ -155,6 +155,10 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="px-4 py-4 space-y-4">
+            <ActiveTaskCard
+     task={tasks.find(t => t.status === "pending") || null}
+     onUpdated={refreshTasks}
+   />
             {/* Property data */}
             {(contact.credit_score || contact.equity_flag !== null || contact.mortgage_amount) && (
               <div className="card p-4">
