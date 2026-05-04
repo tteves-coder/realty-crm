@@ -73,7 +73,6 @@ export default function ActiveTaskCard({
       .from("tasks")
       .update({
         due_date: newDateISO,
-        updated_at: new Date().toISOString(),
       })
       .eq("id", task.id);
 
