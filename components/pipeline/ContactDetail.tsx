@@ -1,4 +1,5 @@
 "use client";
+import ActiveTaskCard from "@/components/contacts/ActiveTaskCard";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Contact, TouchType } from "@/lib/database.types";
