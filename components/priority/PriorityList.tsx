@@ -69,22 +69,33 @@ export default function PriorityList({ userId }: { userId: string }) {
       });
       setContacts(ranked);
 
-      if (ranked.length > 0) {
-  const ids = ranked.map(c => c.id);
-  const { data: tasks, error: taskErr } = await supabase
-    .from("tasks")
-    .select("*")
-    .in("contact_id", ids)
-    .eq("status", "pending")
-    .order("due_date", { ascending: true });
+    if (ranked.length > 0) {
+        const ids = ranked.map(c => c.id);
 
-        if (taskErr) throw taskErr;
-
+        // Chunk to avoid bad request on mobile with large contact lists
+        const CHUNK = 200;
         const map: Record<string, Task[]> = {};
-        for (const t of (tasks || []) as any[]) {
-          if (!map[t.contact_id]) map[t.contact_id] = [];
-          map[t.contact_id].push(t as Task);
+
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const chunk = ids.slice(i, i + CHUNK);
+          const { data: tasks, error: taskErr } = await supabase
+            .from("tasks")
+            .select("*")
+            .in("contact_id", chunk)
+            .eq("status", "pending")
+            .order("due_date", { ascending: true });
+
+          if (taskErr) {
+            console.warn("Task chunk failed:", taskErr.message);
+            continue;
+          }
+
+          for (const t of (tasks || []) as any[]) {
+            if (!map[t.contact_id]) map[t.contact_id] = [];
+            map[t.contact_id].push(t as Task);
+          }
         }
+
         setTaskMap(map);
       }
     } catch (e: any) {
