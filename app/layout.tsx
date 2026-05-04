@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Toaster } from "react-hot-toast";
 import "@/styles/globals.css";
 
@@ -29,7 +30,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           success: { iconTheme: { primary: "#34d399", secondary: "#fff" } },
           error: { iconTheme: { primary: "#f94021", secondary: "#fff" } },
         }} />
-      </body>
-    </html>
-  );
-}
+
+        {/* Mobile debug console — only loads when ?debug=1 is in URL */}
+        <Script id="eruda-debug
