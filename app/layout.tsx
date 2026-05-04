@@ -15,6 +15,8 @@ export const viewport: Viewport = {
   userScalable: false, viewportFit: "cover", themeColor: "#1e1f6b",
 };
 
+const ERUDA_SNIPPET = 'if(typeof window!=="undefined"&&window.location.search.indexOf("debug=1")>=0){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/eruda";s.onload=function(){window.eruda&&window.eruda.init();};document.body.appendChild(s);}';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -30,6 +32,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           success: { iconTheme: { primary: "#34d399", secondary: "#fff" } },
           error: { iconTheme: { primary: "#f94021", secondary: "#fff" } },
         }} />
-
-        {/* Mobile debug console — only loads when ?debug=1 is in URL */}
-        <Script id="eruda-debug
+        <Script id="eruda-debug" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: ERUDA_SNIPPET }} />
+      </body>
+    </html>
+  );
+}
