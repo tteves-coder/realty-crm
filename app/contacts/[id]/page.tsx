@@ -1,7 +1,7 @@
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import ContactDetail from "@/components/contacts/ContactDetail";
+import ContactDetail from "@/components/pipeline/ContactDetail";
 
 export default async function ContactPage({ params }: { params: { id: string } }) {
   const supabase = createServerComponentClient({ cookies });
