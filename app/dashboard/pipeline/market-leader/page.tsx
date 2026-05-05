@@ -1,14 +1,13 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { FlaggedContactsList } from './FlaggedContactsList';
 
-// Always re-fetch on navigation so the list reflects current flag state
-// (e.g. after toggling flags on individual contact pages).
 export const dynamic = 'force-dynamic';
 
 export default async function MarketLeaderPage() {
-  const supabase = createClient();
+  const supabase = createServerComponentClient({ cookies });
   const { data: contacts, error } = await supabase
     .from('contacts')
     .select('id, first_name, last_name, email, phone, updated_at')
