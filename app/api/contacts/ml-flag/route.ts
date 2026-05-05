@@ -1,24 +1,22 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 /**
  * PATCH /api/contacts/ml-flag
- *
  * Body: { ids: string[], ml_update_needed: boolean }
  *
  * Bulk-update the ml_update_needed flag for the given contact IDs.
  * Used by the Market Leader page for individual + bulk clears, and
  * by the export flow to auto-clear flags after CSV download.
- *
- * Relies on Supabase RLS to scope writes to the current user's contacts.
  */
 export async function PATCH(request: Request) {
-  const supabase = createClient();
+  const supabase = createRouteHandlerClient({ cookies });
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
