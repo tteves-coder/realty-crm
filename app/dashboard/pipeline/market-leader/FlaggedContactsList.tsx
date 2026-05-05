@@ -22,14 +22,37 @@ function escapeCsv(value: unknown): string {
   return s;
 }
 
+/**
+ * Split a single name field into first name + last name for Market Leader.
+ * Splits on the first space: everything before = first, everything after = last.
+ *   "John Smith"        -> { first: "John", last: "Smith" }
+ *   "Mary Jane Watson"  -> { first: "Mary", last: "Jane Watson" }
+ *   "Cher"              -> { first: "Cher", last: "" }
+ *   null / ""           -> { first: "", last: "" }
+ */
+function splitName(name: string | null): { first: string; last: string } {
+  if (!name) return { first: '', last: '' };
+  const trimmed = name.trim();
+  if (!trimmed) return { first: '', last: '' };
+  const firstSpace = trimmed.indexOf(' ');
+  if (firstSpace === -1) {
+    return { first: trimmed, last: '' };
+  }
+  return {
+    first: trimmed.slice(0, firstSpace),
+    last: trimmed.slice(firstSpace + 1).trim(),
+  };
+}
+
 function buildCsv(contacts: Contact[]): string {
-  const headers = ['Name', 'Email', 'Phone', 'Updated At'];
-  const rows = contacts.map((c) => [
-    c.name,
-    c.email,
-    c.phone,
-    c.updated_at,
-  ]);
+  // Column headers match Market Leader's import template:
+  // First Name + Last Name are required; email or phone satisfies their
+  // "must have email OR phone OR address" rule.
+  const headers = ['First Name', 'Last Name', 'Email', 'Phone'];
+  const rows = contacts.map((c) => {
+    const { first, last } = splitName(c.name);
+    return [first, last, c.email, c.phone];
+  });
   const bom = '\ufeff';
   return (
     bom +
