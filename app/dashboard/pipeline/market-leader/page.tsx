@@ -10,7 +10,7 @@ export default async function MarketLeaderPage() {
   const supabase = createServerComponentClient({ cookies });
   const { data: contacts, error } = await supabase
     .from('contacts')
-    .select('id, first_name, last_name, email, phone, updated_at')
+    .select('id, name, email, phone, updated_at')
     .eq('ml_update_needed', true)
     .order('updated_at', { ascending: false });
 
