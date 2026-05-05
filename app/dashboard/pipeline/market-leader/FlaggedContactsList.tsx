@@ -7,17 +7,12 @@ import { Download, X, Check, Loader2 } from 'lucide-react';
 
 type Contact = {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
+  name: string | null;
   email: string | null;
   phone: string | null;
   updated_at: string;
 };
 
-/**
- * Escape a value for CSV: wrap in quotes if it contains comma, quote, or newline,
- * and double any embedded quotes.
- */
 function escapeCsv(value: unknown): string {
   if (value === null || value === undefined) return '';
   const s = String(value);
@@ -28,16 +23,13 @@ function escapeCsv(value: unknown): string {
 }
 
 function buildCsv(contacts: Contact[]): string {
-  // Adjust headers/columns to match Market Leader's expected import format.
-  const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Updated At'];
+  const headers = ['Name', 'Email', 'Phone', 'Updated At'];
   const rows = contacts.map((c) => [
-    c.first_name,
-    c.last_name,
+    c.name,
     c.email,
     c.phone,
     c.updated_at,
   ]);
-  // BOM so Excel opens UTF-8 cleanly without mojibake.
   const bom = '\ufeff';
   return (
     bom +
@@ -80,8 +72,6 @@ export function FlaggedContactsList({
     setError(null);
     setIsExporting(true);
 
-    // Snapshot now so a concurrent flag toggle elsewhere can't cause us
-    // to clear flags we didn't actually export.
     const exportedContacts = [...contacts];
     const exportedIds = exportedContacts.map((c) => c.id);
 
@@ -98,9 +88,6 @@ export function FlaggedContactsList({
       a.remove();
       URL.revokeObjectURL(url);
 
-      // Download triggered — now clear flags for exactly those IDs.
-      // CSV-first ordering: if the clear fails, the user has the CSV
-      // and can retry the clear. The opposite would be worse.
       const res = await fetch('/api/contacts/ml-flag', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -171,7 +158,6 @@ export function FlaggedContactsList({
 
   return (
     <div className="space-y-3">
-      {/* Action bar */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-navy-100 bg-white p-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input
@@ -227,12 +213,9 @@ export function FlaggedContactsList({
         Exporting will download a CSV and automatically clear flags on these contacts.
       </p>
 
-      {/* List */}
       <ul className="divide-y divide-navy-100 overflow-hidden rounded-xl border border-navy-100 bg-white">
         {contacts.map((c) => {
-          const name =
-            [c.first_name, c.last_name].filter(Boolean).join(' ') ||
-            'Unnamed contact';
+          const displayName = c.name || 'Unnamed contact';
           const isSelected = selected.has(c.id);
           return (
             <li
@@ -246,13 +229,13 @@ export function FlaggedContactsList({
                 checked={isSelected}
                 onChange={() => toggleOne(c.id)}
                 className="h-4 w-4 shrink-0 rounded border-navy-300 text-coral-500 focus:ring-coral-400"
-                aria-label={`Select ${name}`}
+                aria-label={`Select ${displayName}`}
               />
               <Link
                 href={`/dashboard/contacts/${c.id}`}
                 className="min-w-0 flex-1"
               >
-                <p className="truncate font-medium text-navy-900">{name}</p>
+                <p className="truncate font-medium text-navy-900">{displayName}</p>
                 <p className="truncate text-xs text-navy-500">
                   {c.email ?? c.phone ?? '—'}
                 </p>
@@ -262,7 +245,7 @@ export function FlaggedContactsList({
                 onClick={() => clearFlags([c.id])}
                 disabled={isClearing}
                 className="shrink-0 rounded-md p-1.5 text-navy-400 transition hover:bg-coral-50 hover:text-coral-600 disabled:opacity-50"
-                aria-label={`Clear flag for ${name}`}
+                aria-label={`Clear flag for ${displayName}`}
               >
                 <X className="h-4 w-4" />
               </button>
