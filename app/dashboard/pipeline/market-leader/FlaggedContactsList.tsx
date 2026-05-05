@@ -11,6 +11,24 @@ type Contact = {
   email: string | null;
   phone: string | null;
   updated_at: string;
+  last_ml_export_at: string | null;
+};
+
+type Task = {
+  id: string;
+  contact_id: string;
+  description: string | null;
+  due_date: string | null;
+  status: string | null;
+  created_at: string;
+};
+
+type TouchLog = {
+  id: string;
+  contact_id: string;
+  touch_type: string | null;
+  notes: string | null;
+  touched_at: string;
 };
 
 function escapeCsv(value: unknown): string {
@@ -22,37 +40,116 @@ function escapeCsv(value: unknown): string {
   return s;
 }
 
-/**
- * Split a single name field into first name + last name for Market Leader.
- * Splits on the first space: everything before = first, everything after = last.
- *   "John Smith"        -> { first: "John", last: "Smith" }
- *   "Mary Jane Watson"  -> { first: "Mary", last: "Jane Watson" }
- *   "Cher"              -> { first: "Cher", last: "" }
- *   null / ""           -> { first: "", last: "" }
- */
 function splitName(name: string | null): { first: string; last: string } {
   if (!name) return { first: '', last: '' };
   const trimmed = name.trim();
   if (!trimmed) return { first: '', last: '' };
   const firstSpace = trimmed.indexOf(' ');
-  if (firstSpace === -1) {
-    return { first: trimmed, last: '' };
-  }
+  if (firstSpace === -1) return { first: trimmed, last: '' };
   return {
     first: trimmed.slice(0, firstSpace),
     last: trimmed.slice(firstSpace + 1).trim(),
   };
 }
 
-function buildCsv(contacts: Contact[]): string {
-  // Column headers match Market Leader's import template:
-  // First Name + Last Name are required; email or phone satisfies their
-  // "must have email OR phone OR address" rule.
-  const headers = ['First Name', 'Last Name', 'Email', 'Phone'];
+function formatDate(iso: string | null): string {
+  if (!iso) return '';
+  // Output as YYYY-MM-DD; trim time portion if present
+  return iso.slice(0, 10);
+}
+
+/**
+ * Filter items to only those newer than the cutoff timestamp.
+ * If cutoff is null, returns everything (first-time export = full history).
+ */
+function sinceCutoff<T>(
+  items: T[],
+  cutoff: string | null,
+  getTimestamp: (item: T) => string | null
+): T[] {
+  if (!cutoff) return items;
+  const cutoffMs = new Date(cutoff).getTime();
+  return items.filter((item) => {
+    const ts = getTimestamp(item);
+    if (!ts) return false;
+    return new Date(ts).getTime() > cutoffMs;
+  });
+}
+
+function formatTasks(tasks: Task[]): string {
+  if (tasks.length === 0) return '';
+  // Sort newest first by created_at
+  const sorted = [...tasks].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  return sorted
+    .map((t) => {
+      const status = t.status
+        ? `[${t.status.charAt(0).toUpperCase() + t.status.slice(1)}]`
+        : '[Unknown]';
+      const desc = t.description || '(no description)';
+      const due = t.due_date ? ` - due ${formatDate(t.due_date)}` : '';
+      return `${status} ${desc}${due}`;
+    })
+    .join(' | ');
+}
+
+function formatTouchLogs(logs: TouchLog[]): string {
+  if (logs.length === 0) return '';
+  // Sort newest first by touched_at
+  const sorted = [...logs].sort(
+    (a, b) =>
+      new Date(b.touched_at).getTime() - new Date(a.touched_at).getTime()
+  );
+  return sorted
+    .map((l) => {
+      const date = formatDate(l.touched_at);
+      const type = l.touch_type ? ` (${l.touch_type})` : '';
+      const notes = l.notes || '';
+      return `${date}${type}: ${notes}`;
+    })
+    .join(' | ');
+}
+
+function buildCsv(
+  contacts: Contact[],
+  tasksByContact: Record<string, Task[]>,
+  touchLogsByContact: Record<string, TouchLog[]>
+): string {
+  const headers = [
+    'First Name',
+    'Last Name',
+    'Email',
+    'Phone',
+    'Tasks Since Last Export',
+    'Touch Logs Since Last Export',
+    'Last Exported',
+  ];
   const rows = contacts.map((c) => {
     const { first, last } = splitName(c.name);
-    return [first, last, c.email, c.phone];
+    const cutoff = c.last_ml_export_at;
+
+    const allTasks = tasksByContact[c.id] ?? [];
+    const allLogs = touchLogsByContact[c.id] ?? [];
+
+    // Tasks: filter by created_at (so newly-created tasks show up,
+    // including pending ones that haven't been due yet)
+    const newTasks = sinceCutoff(allTasks, cutoff, (t) => t.created_at);
+    // Touch logs: filter by touched_at
+    const newLogs = sinceCutoff(allLogs, cutoff, (l) => l.touched_at);
+
+    return [
+      first,
+      last,
+      c.email,
+      c.phone,
+      formatTasks(newTasks),
+      formatTouchLogs(newLogs),
+      cutoff ? formatDate(cutoff) : 'Never',
+    ];
   });
+
   const bom = '\ufeff';
   return (
     bom +
@@ -64,8 +161,12 @@ function buildCsv(contacts: Contact[]): string {
 
 export function FlaggedContactsList({
   initialContacts,
+  tasksByContact,
+  touchLogsByContact,
 }: {
   initialContacts: Contact[];
+  tasksByContact: Record<string, Task[]>;
+  touchLogsByContact: Record<string, TouchLog[]>;
 }) {
   const router = useRouter();
   const [contacts, setContacts] = useState(initialContacts);
@@ -99,7 +200,7 @@ export function FlaggedContactsList({
     const exportedIds = exportedContacts.map((c) => c.id);
 
     try {
-      const csv = buildCsv(exportedContacts);
+      const csv = buildCsv(exportedContacts, tasksByContact, touchLogsByContact);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -111,14 +212,21 @@ export function FlaggedContactsList({
       a.remove();
       URL.revokeObjectURL(url);
 
+      // Two server updates after download:
+      // 1) Stamp last_ml_export_at to now (so next export is "since now")
+      // 2) Clear ml_update_needed flag
       const res = await fetch('/api/contacts/ml-flag', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: exportedIds, ml_update_needed: false }),
+        body: JSON.stringify({
+          ids: exportedIds,
+          ml_update_needed: false,
+          stamp_last_export: true,
+        }),
       });
       if (!res.ok) {
         throw new Error(
-          'CSV downloaded, but failed to clear flags. Clear them manually or retry.'
+          'CSV downloaded, but failed to update contacts. Clear flags manually or retry.'
         );
       }
 
@@ -233,13 +341,23 @@ export function FlaggedContactsList({
       )}
 
       <p className="px-1 text-xs text-navy-500">
-        Exporting will download a CSV and automatically clear flags on these contacts.
+        CSV includes tasks and touch logs since each contact&apos;s last export.
+        Exporting clears flags and updates the last-exported timestamp.
       </p>
 
       <ul className="divide-y divide-navy-100 overflow-hidden rounded-xl border border-navy-100 bg-white">
         {contacts.map((c) => {
           const displayName = c.name || 'Unnamed contact';
           const isSelected = selected.has(c.id);
+          const taskCount = (tasksByContact[c.id] ?? []).filter((t) => {
+            if (!c.last_ml_export_at) return true;
+            return new Date(t.created_at) > new Date(c.last_ml_export_at);
+          }).length;
+          const logCount = (touchLogsByContact[c.id] ?? []).filter((l) => {
+            if (!c.last_ml_export_at) return true;
+            return new Date(l.touched_at) > new Date(c.last_ml_export_at);
+          }).length;
+
           return (
             <li
               key={c.id}
@@ -261,6 +379,12 @@ export function FlaggedContactsList({
                 <p className="truncate font-medium text-navy-900">{displayName}</p>
                 <p className="truncate text-xs text-navy-500">
                   {c.email ?? c.phone ?? '—'}
+                  {(taskCount > 0 || logCount > 0) && (
+                    <span className="ml-2 text-navy-400">
+                      · {taskCount} task{taskCount === 1 ? '' : 's'}, {logCount} log
+                      {logCount === 1 ? '' : 's'}
+                    </span>
+                  )}
                 </p>
               </Link>
               <button
