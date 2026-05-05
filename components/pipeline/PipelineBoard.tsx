@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase";
 import { Contact } from "@/lib/database.types";
 import { format, parseISO, isValid, isToday, isPast } from "date-fns";
 import toast from "react-hot-toast";
+import { MarketLeaderButton } from "@/components/pipeline/MarketLeaderButton";
 
 const STAGES = ["Marketing", "Processing", "In Contract", "Other"] as const;
 type Stage = (typeof STAGES)[number];
@@ -247,6 +248,13 @@ export default function PipelineBoard({ userId }: { userId: string }) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <h1 className="font-display text-xl font-semibold text-navy-900">
+          Pipeline
+        </h1>
+        <MarketLeaderButton />
+      </div>
+
       <div className="h-full overflow-x-auto scroll-touch">
         <div
           className="flex gap-4 p-4 h-full"
