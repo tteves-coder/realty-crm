@@ -1,16 +1,14 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { Flag } from 'lucide-react';
 
 /**
  * Pipeline header button that links to the Market Leader flagged contacts view.
- * Shows a gold count badge when contacts are flagged; renders just the icon + label otherwise.
- *
- * Usage: drop into the Pipeline page header.
- *   <MarketLeaderButton />
+ * Shows a gold count badge when contacts are flagged.
  */
 export async function MarketLeaderButton() {
-  const supabase = createClient();
+  const supabase = createServerComponentClient({ cookies });
   const { count } = await supabase
     .from('contacts')
     .select('id', { count: 'exact', head: true })
