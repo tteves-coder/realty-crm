@@ -27,6 +27,7 @@ export default function TodayView({ userId }: { userId: string }) {
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [upcoming, setUpcoming] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [overdueExpanded, setOverdueExpanded] = useState(false);
   const supabase = createClient();
 
   const fetchTasks = useCallback(async () => {
@@ -63,7 +64,7 @@ export default function TodayView({ userId }: { userId: string }) {
     setUpcoming(update);
   };
 
-  const total = overdue.length + todayTasks.length;
+  const total = todayTasks.length;
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
@@ -89,10 +90,16 @@ export default function TodayView({ userId }: { userId: string }) {
               <p className="text-navy-300 text-xs">upcoming</p>
             </div>
           )}
+          {overdue.length > 0 && (
+            <div className="border-l border-white/20 pl-3">
+              <p className="text-2xl font-display font-bold text-coral-300">{overdue.length}</p>
+              <p className="text-navy-300 text-xs">overdue</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {total === 0 && upcoming.length === 0 ? (
+      {total === 0 && upcoming.length === 0 && overdue.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="text-5xl mb-4">🎉</div>
           <h3 className="text-lg font-display font-bold text-navy-900">All caught up!</h3>
@@ -100,11 +107,6 @@ export default function TodayView({ userId }: { userId: string }) {
         </div>
       ) : (
         <div className="px-4 space-y-4 pb-4">
-          {overdue.length > 0 && (
-            <Section title="Overdue" count={overdue.length} accent="text-coral-600" dot="bg-coral-500">
-              {overdue.map(t => <TaskCard key={t.id} task={t} userId={userId} variant="overdue" onRemove={removeTask} onUpdate={updateTask} />)}
-            </Section>
-          )}
           {todayTasks.length > 0 && (
             <Section title="Due Today" count={todayTasks.length} accent="text-jade-700" dot="bg-jade-500">
               {todayTasks.map(t => <TaskCard key={t.id} task={t} userId={userId} variant="today" onRemove={removeTask} onUpdate={updateTask} />)}
@@ -114,6 +116,27 @@ export default function TodayView({ userId }: { userId: string }) {
             <Section title="Upcoming — Next 14 Days" count={upcoming.length} accent="text-navy-500" dot="bg-navy-400">
               {upcoming.map(t => <TaskCard key={t.id} task={t} userId={userId} variant="upcoming" onRemove={removeTask} onUpdate={updateTask} />)}
             </Section>
+          )}
+          {overdue.length > 0 && (
+            <div>
+              <button
+                onClick={() => setOverdueExpanded(v => !v)}
+                className="w-full flex items-center justify-between gap-2 mb-2 py-1 active:opacity-70 transition-opacity"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-coral-500" />
+                  <p className="section-title text-coral-600">Overdue — {overdue.length}</p>
+                </div>
+                <span className="text-xs text-coral-500 font-semibold">
+                  {overdueExpanded ? "Hide ▲" : "Tap to show ▼"}
+                </span>
+              </button>
+              {overdueExpanded && (
+                <div className="space-y-2">
+                  {overdue.map(t => <TaskCard key={t.id} task={t} userId={userId} variant="overdue" onRemove={removeTask} onUpdate={updateTask} />)}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
