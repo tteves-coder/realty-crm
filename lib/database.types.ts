@@ -135,4 +135,3 @@ export interface DailyActivity {
   leads: number;
   closings: number;
 }
-
