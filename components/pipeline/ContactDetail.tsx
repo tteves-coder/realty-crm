@@ -44,13 +44,30 @@ const CONTACT_TYPES: ContactType[] = ["Client", "Partner", "Lead"];
 
 type Task = { id: string; description: string; due_date: string; status: string };
 type TouchLog = { id: string; touch_type: string; notes: string | null; touched_at: string };
-type PartnerOption = { id: string; name: string; partner_category: string | null };
+type PartnerOption = { id: string; name: string; partner_category: string | null; contact_type: string | null };
 
 export default function ContactDetail({ contact: initial, userId }: { contact: Contact; userId: string }) {
-  const [contact, setContact] = useState(initial);
+ const [contact, setContact] = useState(initial);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [touchLogs, setTouchLogs] = useState<TouchLog[]>([]);
   const [nextSteps, setNextSteps] = useState(initial.next_steps || "");
+
+  // Basic info (editable for all contacts including imports)
+  // Use first_name/last_name columns directly; fall back to splitting `name` if those are blank
+  const [firstName, setFirstName] = useState(
+    initial.first_name || (initial.name ? initial.name.split(" ")[0] : "")
+  );
+  const [lastName, setLastName] = useState(
+    initial.last_name ||
+      (initial.name ? initial.name.split(" ").slice(1).join(" ") : "")
+  );
+  const [phone, setPhone] = useState(initial.phone || "");
+  const [email, setEmail] = useState(initial.email || "");
+  const [address, setAddress] = useState(initial.address || "");
+  const [city, setCity] = useState(initial.city || "");
+  const [stateField, setStateField] = useState(initial.state || "");
+  const [zip, setZip] = useState(initial.zip || "");
+  
   const [campaign, setCampaign] = useState(initial.campaign || "");
   const [stage, setStage] = useState(initial.pipeline_stage || "Marketing");
   const [priority, setPriority] = useState(initial.priority_score || "");
@@ -94,14 +111,14 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
       .then(({ data }) => setTouchLogs((data as TouchLog[]) || []));
   }, [contact.id, supabase]);
 
-  // Load partners list when this is a Client/Lead (for Referred By dropdown)
+  // Load partners + past clients for Referred By dropdown
   useEffect(() => {
     if (contactType === "Partner") return;
     supabase
       .from("contacts")
-      .select("id, name, partner_category")
+      .select("id, name, partner_category, contact_type")
       .eq("user_id", userId)
-      .eq("contact_type", "Partner")
+      .in("contact_type", ["Partner", "Client"])
       .neq("id", contact.id) // can't refer to self
       .order("name")
       .then(({ data }) => {
@@ -123,7 +140,20 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
 
   // Save everything (Week 2: includes partner + common fields)
   const handleSave = async () => {
+    const cleanFirst = firstName.trim();
+    const cleanLast = lastName.trim();
+    const combinedName = [cleanFirst, cleanLast].filter(Boolean).join(" ") || contact.name;
+
     const updates: any = {
+      first_name: cleanFirst || null,
+      last_name: cleanLast || null,
+      name: combinedName, // keep combined name in sync so rest of app keeps working
+      phone: phone.trim() || null,
+      email: email.trim() || null,
+      address: address.trim() || null,
+      city: city.trim() || null,
+      state: stateField.trim() || null,
+      zip: zip.trim() || null,
       contact_type: contactType,
       campaign,
       priority_score: priority || null,
@@ -254,6 +284,57 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
                 setTasks((data as Task[]) || []);
               }}
             />
+
+            {/* Basic Info — editable for all contacts including imports */}
+            <div className="card p-4 space-y-3">
+              <p className="section-title">Basic Info</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">First Name</label>
+                  <input value={firstName} onChange={e => setFirstName(e.target.value)}
+                    className="input text-sm py-2" placeholder="First" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Last Name</label>
+                  <input value={lastName} onChange={e => setLastName(e.target.value)}
+                    className="input text-sm py-2" placeholder="Last" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Phone</label>
+                  <input value={phone} onChange={e => setPhone(e.target.value)}
+                    className="input text-sm py-2" placeholder="(555) 555-5555" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Email</label>
+                  <input value={email} onChange={e => setEmail(e.target.value)}
+                    className="input text-sm py-2" placeholder="email@example.com" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-navy-500 mb-1">Address</label>
+                <input value={address} onChange={e => setAddress(e.target.value)}
+                  className="input text-sm py-2" placeholder="Street address" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">City</label>
+                  <input value={city} onChange={e => setCity(e.target.value)}
+                    className="input text-sm py-2" placeholder="City" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">State</label>
+                  <input value={stateField} onChange={e => setStateField(e.target.value)}
+                    className="input text-sm py-2" placeholder="CA" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Zip</label>
+                  <input value={zip} onChange={e => setZip(e.target.value)}
+                    className="input text-sm py-2" placeholder="90210" />
+                </div>
+              </div>
+            </div>
 
             {/* Property data (Client/Lead only, only if data exists) */}
             {!isPartner && (contact.credit_score || contact.equity_flag !== null || contact.mortgage_amount) && (
@@ -424,7 +505,7 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
                 </div>
               </div>
 
-              {/* Referred By (Clients & Leads only) */}
+             {/* Referred By (Clients & Leads only) */}
               {!isPartner && (
                 <div>
                   <label className="block text-xs font-semibold text-navy-500 mb-1">
@@ -433,15 +514,26 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
                   <select value={referredByPartnerId}
                     onChange={e => setReferredByPartnerId(e.target.value)}
                     className="input text-sm py-2">
-                    <option value="">— Not referred by a partner</option>
-                    {partners.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}{p.partner_category ? ` · ${p.partner_category}` : ""}
-                      </option>
-                    ))}
+                    <option value="">— Not referred —</option>
+                    {partners.filter(p => p.contact_type === "Partner").length > 0 && (
+                      <optgroup label="Partners">
+                        {partners.filter(p => p.contact_type === "Partner").map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}{p.partner_category ? ` · ${p.partner_category}` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {partners.filter(p => p.contact_type === "Client").length > 0 && (
+                      <optgroup label="Existing Clients">
+                        {partners.filter(p => p.contact_type === "Client").map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   {partners.length === 0 && (
-                    <p className="text-[11px] text-navy-400 mt-1">No partners yet.</p>
+                    <p className="text-[11px] text-navy-400 mt-1">No partners or clients yet.</p>
                   )}
                 </div>
               )}
