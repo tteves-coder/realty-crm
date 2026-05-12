@@ -2,7 +2,17 @@
 import ActiveTaskCard from "@/components/contacts/ActiveTaskCard";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Contact, TouchType } from "@/lib/database.types";
+import {
+  Contact,
+  TouchType,
+  ContactType,
+  PartnerCategory,
+  PartnerPipelineStage,
+  PreferredContactMethod,
+  PARTNER_CATEGORIES,
+  PARTNER_PIPELINE_STAGES,
+  PREFERRED_CONTACT_METHODS,
+} from "@/lib/database.types";
 import { createClient } from "@/lib/supabase";
 import { useNextStep } from "@/hooks/use-next-step";
 import { format, parseISO, isValid, isPast, isToday } from "date-fns";
@@ -25,11 +35,16 @@ const STAGE_GRAD: Record<string, string> = {
   Other: "linear-gradient(135deg, #64748b, #94a3b8)",
 };
 
+// Partner-type gradient (used when contact_type = Partner)
+const PARTNER_GRAD = "linear-gradient(135deg, #0d9488, #2dd4bf)";
+
 const ALL_CAMPAIGNS = ["8x8 Buyer", "Seller Nurture", "Past Client", "Absentee Owner", "Other"];
 const ALL_STAGES = ["Marketing", "Processing", "In Contract", "Other"];
+const CONTACT_TYPES: ContactType[] = ["Client", "Partner", "Lead"];
 
 type Task = { id: string; description: string; due_date: string; status: string };
 type TouchLog = { id: string; touch_type: string; notes: string | null; touched_at: string };
+type PartnerOption = { id: string; name: string; partner_category: string | null };
 
 export default function ContactDetail({ contact: initial, userId }: { contact: Contact; userId: string }) {
   const [contact, setContact] = useState(initial);
@@ -40,6 +55,29 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
   const [stage, setStage] = useState(initial.pipeline_stage || "Marketing");
   const [priority, setPriority] = useState(initial.priority_score || "");
   const [mlUpdate, setMlUpdate] = useState(initial.ml_update_needed || false);
+
+  // Week 2: editable contact type + new fields
+  const [contactType, setContactType] = useState<ContactType>(initial.contact_type || "Client");
+  const [firm, setFirm] = useState(initial.firm || "");
+  const [roleTitle, setRoleTitle] = useState(initial.role_title || "");
+  const [partnerCategory, setPartnerCategory] = useState<PartnerCategory | "">(
+    (initial.partner_category as PartnerCategory) || ""
+  );
+  const [nicheFitNotes, setNicheFitNotes] = useState(initial.niche_fit_notes || "");
+  const [linkedinUrl, setLinkedinUrl] = useState(initial.linkedin_url || "");
+  const [activeSince, setActiveSince] = useState(initial.active_since || "");
+  const [partnerStage, setPartnerStage] = useState<PartnerPipelineStage>(
+    (initial.partner_pipeline_stage as PartnerPipelineStage) || "Prospecting"
+  );
+  const [birthday, setBirthday] = useState(initial.birthday || "");
+  const [preferredContact, setPreferredContact] = useState<PreferredContactMethod | "">(
+    (initial.preferred_contact_method as PreferredContactMethod) || ""
+  );
+  const [referredByPartnerId, setReferredByPartnerId] = useState(initial.referred_by_partner_id || "");
+
+  // Partners list for Referred By dropdown
+  const [partners, setPartners] = useState<PartnerOption[]>([]);
+
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState("");
   const [newTaskDate, setNewTaskDate] = useState("");
@@ -49,15 +87,27 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
   const { saveNextStep, saving } = useNextStep(contact.id, userId);
 
   useEffect(() => {
-    // Load tasks
     supabase.from("tasks").select("*").eq("contact_id", contact.id)
       .order("due_date").then(({ data }) => setTasks((data as Task[]) || []));
-
-    // Load touch logs
     supabase.from("touch_logs").select("*").eq("contact_id", contact.id)
       .order("touched_at", { ascending: false }).limit(20)
       .then(({ data }) => setTouchLogs((data as TouchLog[]) || []));
-  }, [contact.id]);
+  }, [contact.id, supabase]);
+
+  // Load partners list when this is a Client/Lead (for Referred By dropdown)
+  useEffect(() => {
+    if (contactType === "Partner") return;
+    supabase
+      .from("contacts")
+      .select("id, name, partner_category")
+      .eq("user_id", userId)
+      .eq("contact_type", "Partner")
+      .neq("id", contact.id) // can't refer to self
+      .order("name")
+      .then(({ data }) => {
+        if (data) setPartners(data as PartnerOption[]);
+      });
+  }, [contactType, supabase, userId, contact.id]);
 
   const logTouch = async (type: TouchType) => {
     const { data } = await supabase.from("touch_logs").insert({
@@ -71,9 +121,37 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
     }
   };
 
+  // Save everything (Week 2: includes partner + common fields)
   const handleSave = async () => {
-    await saveNextStep(nextSteps, { campaign, pipeline_stage: stage, priority_score: priority || null, ml_update_needed: mlUpdate });
-    setContact(prev => ({ ...prev, next_steps: nextSteps, campaign, pipeline_stage: stage as any, priority_score: priority as any, ml_update_needed: mlUpdate }));
+    const updates: any = {
+      contact_type: contactType,
+      campaign,
+      priority_score: priority || null,
+      ml_update_needed: mlUpdate,
+      birthday: birthday || null,
+      preferred_contact_method: preferredContact || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (contactType === "Partner") {
+      updates.firm = firm.trim() || null;
+      updates.role_title = roleTitle.trim() || null;
+      updates.partner_category = partnerCategory || null;
+      updates.niche_fit_notes = nicheFitNotes.trim() || null;
+      updates.linkedin_url = linkedinUrl.trim() || null;
+      updates.active_since = activeSince || null;
+      updates.partner_pipeline_stage = partnerStage;
+      // Don't clear referred_by here — preserve in case type was switched back
+    } else {
+      updates.pipeline_stage = stage;
+      updates.referred_by_partner_id = referredByPartnerId || null;
+    }
+
+    // Always save next_steps via the existing hook (for task auto-creation)
+    await saveNextStep(nextSteps, updates);
+
+    setContact(prev => ({ ...prev, ...updates, next_steps: nextSteps } as Contact));
+    toast.success("Saved!");
   };
 
   const completeTask = async (taskId: string) => {
@@ -88,12 +166,18 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
       contact_id: contact.id, user_id: userId,
       description: newTask, due_date: newTaskDate, status: "pending",
     } as any).select().single();
-    if (data) { setTasks(prev => [...prev, data as Task]); setNewTask(""); setNewTaskDate(""); setShowAddTask(false); toast.success("Task added!"); }
+    if (data) {
+      setTasks(prev => [...prev, data as Task]);
+      setNewTask(""); setNewTaskDate(""); setShowAddTask(false);
+      toast.success("Task added!");
+    }
   };
 
   const initials = contact.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
   const pendingTasks = tasks.filter(t => t.status === "pending");
   const doneTasks = tasks.filter(t => t.status === "completed");
+  const isPartner = contactType === "Partner";
+  const headerGradient = isPartner ? PARTNER_GRAD : (STAGE_GRAD[contact.pipeline_stage] || STAGE_GRAD.Other);
 
   return (
     <div className="h-full flex flex-col">
@@ -106,14 +190,17 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
           </button>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-display font-bold text-xl flex-shrink-0"
-              style={{ background: STAGE_GRAD[contact.pipeline_stage] || STAGE_GRAD.Other }}>{initials}</div>
+              style={{ background: headerGradient }}>{initials}</div>
             <div className="flex-1 min-w-0">
               <h1 className="font-display font-bold text-white text-xl leading-tight">{contact.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/15 text-white">
+                  {contactType}{isPartner && partnerCategory ? ` · ${partnerCategory}` : ""}
+                </span>
                 {contact.priority_score && (
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/15 text-white">{contact.priority_score}</span>
                 )}
-                <span className="text-white/60 text-xs">{contact.pipeline_stage}</span>
+                {!isPartner && <span className="text-white/60 text-xs">{contact.pipeline_stage}</span>}
                 {contact.city && <span className="text-white/60 text-xs">· {contact.city}, {contact.state}</span>}
               </div>
             </div>
@@ -157,18 +244,19 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
         {activeTab === "overview" && (
           <div className="px-4 py-4 space-y-4">
             <ActiveTaskCard
-  task={tasks.find(t => t.status === "pending") || null}
-  onUpdated={async () => {
-    const { data } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("contact_id", contact.id)
-      .order("due_date");
-    setTasks((data as Task[]) || []);
-  }}
-   />
-            {/* Property data */}
-            {(contact.credit_score || contact.equity_flag !== null || contact.mortgage_amount) && (
+              task={tasks.find(t => t.status === "pending") || null}
+              onUpdated={async () => {
+                const { data } = await supabase
+                  .from("tasks")
+                  .select("*")
+                  .eq("contact_id", contact.id)
+                  .order("due_date");
+                setTasks((data as Task[]) || []);
+              }}
+            />
+
+            {/* Property data (Client/Lead only, only if data exists) */}
+            {!isPartner && (contact.credit_score || contact.equity_flag !== null || contact.mortgage_amount) && (
               <div className="card p-4">
                 <p className="section-title mb-3">Property Info</p>
                 <div className="grid grid-cols-3 gap-3">
@@ -204,7 +292,61 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
               </div>
             )}
 
-            {/* Next Steps — auto-syncs to task */}
+            {/* PARTNER INFO CARD (Partner only) */}
+            {isPartner && (
+              <div className="card p-4 space-y-3">
+                <p className="section-title">Partner Details</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-navy-500 mb-1">Firm</label>
+                    <input value={firm} onChange={e => setFirm(e.target.value)}
+                      className="input text-sm py-2" placeholder="Firm or company" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-navy-500 mb-1">Role</label>
+                    <input value={roleTitle} onChange={e => setRoleTitle(e.target.value)}
+                      className="input text-sm py-2" placeholder="Title" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Category</label>
+                  <select value={partnerCategory}
+                    onChange={e => setPartnerCategory(e.target.value as PartnerCategory | "")}
+                    className="input text-sm py-2">
+                    <option value="">—</option>
+                    {PARTNER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Niche Fit Notes</label>
+                  <textarea value={nicheFitNotes} onChange={e => setNicheFitNotes(e.target.value)}
+                    rows={2} className="input text-sm resize-none"
+                    placeholder="Why they fit your niche" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-navy-500 mb-1">LinkedIn</label>
+                    <input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}
+                      className="input text-sm py-2" placeholder="https://linkedin.com/in/..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-navy-500 mb-1">Active Since</label>
+                    <input type="date" value={activeSince} onChange={e => setActiveSince(e.target.value)}
+                      className="input text-sm py-2" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Partner Stage</label>
+                  <select value={partnerStage}
+                    onChange={e => setPartnerStage(e.target.value as PartnerPipelineStage)}
+                    className="input text-sm py-2">
+                    {PARTNER_PIPELINE_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Next Steps */}
             <div className="card p-4">
               <p className="section-title mb-2">Next Steps → Auto-creates Task</p>
               <textarea
@@ -216,15 +358,24 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
               />
               {contact.notes && (
                 <div className="mt-3 p-3 bg-navy-50 rounded-xl">
-                  <p className="text-xs text-navy-400 font-semibold mb-1">Import Notes</p>
+                  <p className="text-xs text-navy-400 font-semibold mb-1">Notes</p>
                   <p className="text-xs text-navy-600">{contact.notes}</p>
                 </div>
               )}
             </div>
 
-            {/* Update fields */}
+            {/* Contact Settings */}
             <div className="card p-4 space-y-3">
               <p className="section-title">Contact Settings</p>
+              <div>
+                <label className="block text-xs font-semibold text-navy-500 mb-1">Contact Type</label>
+                <select value={contactType}
+                  onChange={e => setContactType(e.target.value as ContactType)}
+                  className="input text-sm py-2">
+                  {CONTACT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-navy-500 mb-1">Priority</label>
@@ -235,20 +386,66 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
                     <option value="LOW">LOW</option>
                   </select>
                 </div>
+                {!isPartner && (
+                  <div>
+                    <label className="block text-xs font-semibold text-navy-500 mb-1">Pipeline</label>
+                    <select value={stage} onChange={e => setStage(e.target.value)} className="input text-sm py-2">
+                      {ALL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {!isPartner && (
                 <div>
-                  <label className="block text-xs font-semibold text-navy-500 mb-1">Pipeline</label>
-                  <select value={stage} onChange={e => setStage(e.target.value)} className="input text-sm py-2">
-                    {ALL_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Campaign</label>
+                  <select value={campaign} onChange={e => setCampaign(e.target.value)} className="input text-sm py-2">
+                    <option value="">No campaign</option>
+                    {ALL_CAMPAIGNS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Common: birthday + preferred contact */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Birthday</label>
+                  <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)}
+                    className="input text-sm py-2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">Preferred Contact</label>
+                  <select value={preferredContact}
+                    onChange={e => setPreferredContact(e.target.value as PreferredContactMethod | "")}
+                    className="input text-sm py-2">
+                    <option value="">—</option>
+                    {PREFERRED_CONTACT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-navy-500 mb-1">Campaign</label>
-                <select value={campaign} onChange={e => setCampaign(e.target.value)} className="input text-sm py-2">
-                  <option value="">No campaign</option>
-                  {ALL_CAMPAIGNS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+
+              {/* Referred By (Clients & Leads only) */}
+              {!isPartner && (
+                <div>
+                  <label className="block text-xs font-semibold text-navy-500 mb-1">
+                    Referred By <span className="text-navy-300 text-[10px]">(optional)</span>
+                  </label>
+                  <select value={referredByPartnerId}
+                    onChange={e => setReferredByPartnerId(e.target.value)}
+                    className="input text-sm py-2">
+                    <option value="">— Not referred by a partner</option>
+                    {partners.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}{p.partner_category ? ` · ${p.partner_category}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {partners.length === 0 && (
+                    <p className="text-[11px] text-navy-400 mt-1">No partners yet.</p>
+                  )}
+                </div>
+              )}
+
               <button onClick={() => setMlUpdate(!mlUpdate)}
                 className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${mlUpdate ? "border-gold-400 bg-gold-50" : "border-navy-100"}`}>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${mlUpdate ? "bg-gold-400 border-gold-400" : "border-navy-300"}`}>
@@ -311,7 +508,6 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
         {/* TASKS TAB */}
         {activeTab === "tasks" && (
           <div className="px-4 py-4 space-y-3">
-            {/* Add task */}
             {showAddTask ? (
               <div className="card p-4 space-y-2">
                 <p className="section-title">New Task</p>
@@ -329,7 +525,6 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
               </button>
             )}
 
-            {/* Pending */}
             {pendingTasks.length > 0 && (
               <div>
                 <p className="section-title mb-2">Pending</p>
@@ -355,7 +550,6 @@ export default function ContactDetail({ contact: initial, userId }: { contact: C
               </div>
             )}
 
-            {/* Completed */}
             {doneTasks.length > 0 && (
               <div>
                 <p className="section-title mb-2 text-jade-600">Completed</p>
