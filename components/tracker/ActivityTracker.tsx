@@ -8,22 +8,23 @@ import { DailyActivity } from "@/lib/database.types";
 type ActivityKey = keyof Omit<DailyActivity, "id" | "user_id" | "date">;
 
 const ACTIVITIES: { key: ActivityKey; label: string; emoji: string; gradient: string }[] = [
-  { key: "calls",          label: "Calls",       emoji: "📞", gradient: "linear-gradient(135deg, #6171f5, #8196fa)" },
-  { key: "texts",          label: "Texts",       emoji: "💬", gradient: "linear-gradient(135deg, #10b981, #34d399)" },
-  { key: "door_knocking",  label: "Door Knock",  emoji: "🚪", gradient: "linear-gradient(135deg, #f59e0b, #fcd34d)" },
-  { key: "realtors",       label: "Realtors",    emoji: "🏠", gradient: "linear-gradient(135deg, #8b5cf6, #a78bfa)" },
-  { key: "networking",     label: "Networking",  emoji: "🤝", gradient: "linear-gradient(135deg, #ec4899, #f9a8d4)" },
-  { key: "conversations",  label: "Convos",      emoji: "💭", gradient: "linear-gradient(135deg, #f94021, #ff6b52)" },
-  { key: "appts_set",      label: "Appts Set",   emoji: "📅", gradient: "linear-gradient(135deg, #0ea5e9, #38bdf8)" },
-  { key: "appts_conducted",label: "Appts Done",  emoji: "✅", gradient: "linear-gradient(135deg, #047857, #10b981)" },
-  { key: "clients",        label: "Clients",     emoji: "⭐", gradient: "linear-gradient(135deg, #d97706, #f59e0b)" },
-  { key: "leads",          label: "New Leads",   emoji: "🎯", gradient: "linear-gradient(135deg, #dc2626, #f87171)" },
-  { key: "closings",       label: "Closings",    emoji: "🎉", gradient: "linear-gradient(135deg, #1e1f6b, #6171f5)" },
+  { key: "calls",          label: "Calls",        emoji: "📞", gradient: "linear-gradient(135deg, #6171f5, #8196fa)" },
+  { key: "texts",          label: "Texts",        emoji: "💬", gradient: "linear-gradient(135deg, #10b981, #34d399)" },
+  { key: "met",            label: "Met",          emoji: "☕", gradient: "linear-gradient(135deg, #0d9488, #2dd4bf)" },
+  { key: "sent_content",   label: "Sent Content", emoji: "📤", gradient: "linear-gradient(135deg, #f59e0b, #fcd34d)" },
+  { key: "realtors",       label: "Realtors",     emoji: "🏠", gradient: "linear-gradient(135deg, #8b5cf6, #a78bfa)" },
+  { key: "networking",     label: "Networking",   emoji: "🤝", gradient: "linear-gradient(135deg, #ec4899, #f9a8d4)" },
+  { key: "conversations",  label: "Convos",       emoji: "💭", gradient: "linear-gradient(135deg, #f94021, #ff6b52)" },
+  { key: "appts_set",      label: "Appts Set",    emoji: "📅", gradient: "linear-gradient(135deg, #0ea5e9, #38bdf8)" },
+  { key: "appts_conducted",label: "Appts Done",   emoji: "✅", gradient: "linear-gradient(135deg, #047857, #10b981)" },
+  { key: "clients",        label: "Clients",      emoji: "⭐", gradient: "linear-gradient(135deg, #d97706, #f59e0b)" },
+  { key: "leads",          label: "New Leads",    emoji: "🎯", gradient: "linear-gradient(135deg, #dc2626, #f87171)" },
+  { key: "closings",       label: "Closings",     emoji: "🎉", gradient: "linear-gradient(135deg, #1e1f6b, #6171f5)" },
 ];
 
 const empty = (userId: string, date: string): DailyActivity => ({
   user_id: userId, date,
-  calls: 0, texts: 0, door_knocking: 0, realtors: 0, networking: 0,
+  calls: 0, texts: 0, met: 0, sent_content: 0, realtors: 0, networking: 0,
   conversations: 0, appts_set: 0, appts_conducted: 0, clients: 0, leads: 0, closings: 0,
 });
 
