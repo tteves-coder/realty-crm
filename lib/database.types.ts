@@ -1,7 +1,7 @@
 export type PipelineStage = "Marketing" | "Processing" | "In Contract" | "Other";
 export type TaskStatus = "pending" | "completed";
 export type PriorityScore = "HIGH" | "MED" | "LOW" | null;
-export type TouchType = "call" | "text" | "email" | "door" | "postcard" | "bombbomb" | "other";
+export type TouchType = "call" | "text" | "email" | "met" | "sent_content" | "postcard" | "bombbomb" | "other";
 
 export interface Contact {
   id: string;
@@ -63,7 +63,8 @@ export interface DailyActivity {
   date: string;
   calls: number;
   texts: number;
-  door_knocking: number;
+  met: number;
+  sent_content: number;
   realtors: number;
   networking: number;
   conversations: number;
