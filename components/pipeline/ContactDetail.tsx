@@ -9,12 +9,13 @@ import { format, parseISO, isValid, isPast, isToday } from "date-fns";
 import toast from "react-hot-toast";
 
 const TOUCH_TYPES: { type: TouchType; label: string; emoji: string; color: string }[] = [
-  { type: "call",      label: "Called",     emoji: "📞", color: "#6171f5" },
-  { type: "text",      label: "Texted",     emoji: "💬", color: "#10b981" },
-  { type: "email",     label: "Emailed",    emoji: "📧", color: "#8b5cf6" },
-  { type: "door",      label: "Door Knock", emoji: "🚪", color: "#f59e0b" },
-  { type: "postcard",  label: "Postcard",   emoji: "📮", color: "#f94021" },
-  { type: "bombbomb",  label: "BombBomb",   emoji: "🎥", color: "#ec4899" },
+  { type: "call",         label: "Called",       emoji: "📞", color: "#6171f5" },
+  { type: "text",         label: "Texted",       emoji: "💬", color: "#10b981" },
+  { type: "email",        label: "Emailed",      emoji: "📧", color: "#8b5cf6" },
+  { type: "met",          label: "Met",          emoji: "☕", color: "#0d9488" },
+  { type: "sent_content", label: "Sent Content", emoji: "📤", color: "#f59e0b" },
+  { type: "postcard",     label: "Postcard",     emoji: "📮", color: "#f94021" },
+  { type: "bombbomb",     label: "BombBomb",     emoji: "🎥", color: "#ec4899" },
 ];
 
 const STAGE_GRAD: Record<string, string> = {
