@@ -1,19 +1,29 @@
 "use client";
 import React from "react";
-import { ui } from "@/components/uiStyles";
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { format, isToday, isPast, parseISO, isValid, isTomorrow } from "date-fns";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { ContactType } from "@/lib/database.types";
 
 type Task = {
   id: string;
   description: string;
   due_date: string;
   status: string;
-  contacts: { id: string; name: string; campaign: string | null; pipeline_stage: string; phone: string | null } | null;
+  contacts: {
+    id: string;
+    name: string;
+    campaign: string | null;
+    pipeline_stage: string;
+    phone: string | null;
+    contact_type: ContactType | null;
+    partner_category: string | null;
+  } | null;
 };
+
+type FilterType = "All" | "Client" | "Partner" | "Lead";
 
 const STAGE_GRAD: Record<string, string> = {
   Marketing: "linear-gradient(135deg, #6171f5, #8196fa)",
@@ -22,12 +32,15 @@ const STAGE_GRAD: Record<string, string> = {
   Other: "linear-gradient(135deg, #64748b, #94a3b8)",
 };
 
+const PARTNER_GRAD = "linear-gradient(135deg, #0d9488, #2dd4bf)";
+
 export default function TodayView({ userId }: { userId: string }) {
-  const [overdue, setOverdue] = useState<Task[]>([]);
-  const [todayTasks, setTodayTasks] = useState<Task[]>([]);
-  const [upcoming, setUpcoming] = useState<Task[]>([]);
+  const [allOverdue, setAllOverdue] = useState<Task[]>([]);
+  const [allTodayTasks, setAllTodayTasks] = useState<Task[]>([]);
+  const [allUpcoming, setAllUpcoming] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [overdueExpanded, setOverdueExpanded] = useState(false);
+  const [filter, setFilter] = useState<FilterType>("All");
   const supabase = createClient();
 
   const fetchTasks = useCallback(async () => {
@@ -36,35 +49,57 @@ export default function TodayView({ userId }: { userId: string }) {
     const futureDate = format(future, "yyyy-MM-dd");
     const { data, error } = await supabase
       .from("tasks")
-      .select("*, contacts(id, name, campaign, pipeline_stage, phone)")
+      .select("*, contacts(id, name, campaign, pipeline_stage, phone, contact_type, partner_category)")
       .eq("user_id", userId)
       .eq("status", "pending")
       .lte("due_date", futureDate)
       .order("due_date", { ascending: true });
-    if (error) { toast.error("Failed to load tasks"); setLoading(false); return; }
+    if (error) {
+      toast.error("Failed to load tasks");
+      setLoading(false);
+      return;
+    }
     const all = (data as Task[]) || [];
-    setOverdue(all.filter(t => { const d = parseISO(t.due_date); return isValid(d) && isPast(d) && !isToday(d); }));
-    setTodayTasks(all.filter(t => { const d = parseISO(t.due_date); return isValid(d) && isToday(d); }));
-    setUpcoming(all.filter(t => { const d = parseISO(t.due_date); return isValid(d) && !isPast(d) && !isToday(d); }));
+    setAllOverdue(all.filter(t => { const d = parseISO(t.due_date); return isValid(d) && isPast(d) && !isToday(d); }));
+    setAllTodayTasks(all.filter(t => { const d = parseISO(t.due_date); return isValid(d) && isToday(d); }));
+    setAllUpcoming(all.filter(t => { const d = parseISO(t.due_date); return isValid(d) && !isPast(d) && !isToday(d); }));
     setLoading(false);
   }, [supabase, userId]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
+  // Apply filter
+  const applyFilter = (tasks: Task[]): Task[] => {
+    if (filter === "All") return tasks;
+    return tasks.filter(t => (t.contacts?.contact_type || "Client") === filter);
+  };
+
+  const overdue = applyFilter(allOverdue);
+  const todayTasks = applyFilter(allTodayTasks);
+  const upcoming = applyFilter(allUpcoming);
+
   const removeTask = (id: string) => {
-    setOverdue(p => p.filter(t => t.id !== id));
-    setTodayTasks(p => p.filter(t => t.id !== id));
-    setUpcoming(p => p.filter(t => t.id !== id));
+    setAllOverdue(p => p.filter(t => t.id !== id));
+    setAllTodayTasks(p => p.filter(t => t.id !== id));
+    setAllUpcoming(p => p.filter(t => t.id !== id));
   };
 
   const updateTask = (updated: Task) => {
     const update = (list: Task[]) => list.map(t => t.id === updated.id ? updated : t);
-    setOverdue(update);
-    setTodayTasks(update);
-    setUpcoming(update);
+    setAllOverdue(update);
+    setAllTodayTasks(update);
+    setAllUpcoming(update);
   };
 
   const total = todayTasks.length;
+
+  // Counts for the filter chips
+  const counts: Record<FilterType, number> = {
+    All: allOverdue.length + allTodayTasks.length + allUpcoming.length,
+    Client: [...allOverdue, ...allTodayTasks, ...allUpcoming].filter(t => (t.contacts?.contact_type || "Client") === "Client").length,
+    Partner: [...allOverdue, ...allTodayTasks, ...allUpcoming].filter(t => t.contacts?.contact_type === "Partner").length,
+    Lead: [...allOverdue, ...allTodayTasks, ...allUpcoming].filter(t => t.contacts?.contact_type === "Lead").length,
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
@@ -74,6 +109,7 @@ export default function TodayView({ userId }: { userId: string }) {
 
   return (
     <div className="h-full overflow-y-auto scroll-touch">
+      {/* Header */}
       <div className="mx-4 mt-4 mb-3 rounded-3xl p-5 text-white relative overflow-hidden"
         style={{ background: "linear-gradient(135deg, #1e1f6b, #6171f5)" }}>
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10"
@@ -99,11 +135,36 @@ export default function TodayView({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {/* Filter chips */}
+      <div className="px-4 mb-3 flex gap-2 overflow-x-auto scrollbar-hide">
+        {(["All", "Client", "Partner", "Lead"] as FilterType[]).map(f => {
+          const active = filter === f;
+          const count = counts[f];
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                active
+                  ? "bg-navy-900 text-white"
+                  : "bg-white text-navy-500 border border-navy-200 hover:border-navy-400"
+              }`}
+            >
+              {f} <span className={active ? "text-white/70" : "text-navy-400"}>· {count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {total === 0 && upcoming.length === 0 && overdue.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="text-5xl mb-4">🎉</div>
-          <h3 className="text-lg font-display font-bold text-navy-900">All caught up!</h3>
-          <p className="text-navy-400 text-sm mt-1">No tasks due. Crush it today!</p>
+          <h3 className="text-lg font-display font-bold text-navy-900">
+            {filter === "All" ? "All caught up!" : `No ${filter} tasks.`}
+          </h3>
+          <p className="text-navy-400 text-sm mt-1">
+            {filter === "All" ? "No tasks due. Crush it today!" : "Switch filter to see other tasks."}
+          </p>
         </div>
       ) : (
         <div className="px-4 space-y-4 pb-4">
@@ -171,7 +232,10 @@ function TaskCard({ task: t, userId, variant, onRemove, onUpdate }: {
   const [saving, setSaving] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const isPartner = t.contacts?.contact_type === "Partner";
   const stage = t.contacts?.pipeline_stage || "Other";
+  const badgeGradient = isPartner ? PARTNER_GRAD : STAGE_GRAD[stage];
+  const badgeLabel = isPartner ? (t.contacts?.partner_category || "Partner") : stage;
   const d = parseISO(t.due_date);
   const dateLabel = variant === "overdue"
     ? `Overdue · ${format(d, "MMM d")}`
@@ -227,8 +291,10 @@ function TaskCard({ task: t, userId, variant, onRemove, onUpdate }: {
         <p className="text-navy-600 text-sm mt-0.5">{t.description}</p>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
-            style={{ background: STAGE_GRAD[stage] }}>{stage}</span>
-          {t.contacts?.campaign && <span className="text-xs text-navy-400">{t.contacts.campaign}</span>}
+            style={{ background: badgeGradient }}>{badgeLabel}</span>
+          {!isPartner && t.contacts?.campaign && (
+            <span className="text-xs text-navy-400">{t.contacts.campaign}</span>
+          )}
           <span className={`text-xs font-medium ${
             variant === "overdue" ? "text-coral-600" : variant === "today" ? "text-jade-600" : "text-navy-400"
           }`}>{dateLabel}</span>
