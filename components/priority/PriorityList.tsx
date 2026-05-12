@@ -300,9 +300,15 @@ function ContactSheet({ contact, userId, onClose, onUpdate, onTaskUpdate }: {
     } as any);
     await supabase.from("contacts").update({ last_contacted: today } as any).eq("id", contact.id);
     const actMap: Record<string, string> = {
-      call: "calls", text: "texts", email: "texts",
-      door: "door_knocking", postcard: "networking", bombbomb: "conversations", other: "conversations",
-    };
+  call: "calls",
+  text: "texts",
+  email: "texts",
+  met: "met",
+  sent_content: "sent_content",
+  postcard: "networking",
+  bombbomb: "conversations",
+  other: "conversations",
+};
     const col = actMap[type] || "conversations";
     const { data: existingArr } = await supabase.from("daily_activities")
   .select("*").eq("user_id", userId).eq("date", today).limit(1);
