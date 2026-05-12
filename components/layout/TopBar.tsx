@@ -26,6 +26,12 @@ export default function TopBar({ userEmail, userId }: { userEmail: string; userI
     router.refresh();
   };
 
+  // Smart-default for + button: infer contact_type from context.
+  // (Today / Priority / Pipeline → Client by default; can be changed in the form.)
+  const handleAddContact = () => {
+    router.push("/dashboard/contacts/new");
+  };
+
   return (
     <header className="safe-top" style={{ background: "linear-gradient(135deg, #13144a 0%, #1e1f6b 100%)" }}>
       <div className="flex items-center gap-3 px-4 h-14">
@@ -37,6 +43,18 @@ export default function TopBar({ userEmail, userId }: { userEmail: string; userI
 
         {/* Search */}
         <GlobalSearch userId={userId} />
+
+        {/* + Add Contact button */}
+        <button
+          onClick={handleAddContact}
+          className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center flex-shrink-0 transition-colors active:scale-95"
+          aria-label="Add contact"
+          title="Add contact"
+        >
+          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
 
         {/* Avatar */}
         <div className="relative flex-shrink-0">
